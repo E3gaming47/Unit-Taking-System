@@ -31,3 +31,22 @@ class LoginSerializer(serializers.Serializer):
         data["user"] = user
         return data
 
+
+
+class StudentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "email", "role", "student_id"]
+
+
+class ProfessorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "email", "role", "professor_code"]
+
+
+class AdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "email", "role"]
+
