@@ -1,7 +1,7 @@
 from rest_framework.generics import CreateAPIView
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
@@ -34,3 +34,18 @@ class LoginView(CreateAPIView):
 class MeView(APIView):
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+    
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except Exception:
+            pass
+
+        return Response({"detail": "Logged out"})    
