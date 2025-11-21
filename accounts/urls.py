@@ -7,4 +7,8 @@ urlpatterns = [
     path('admin/login/', views.admin_login, name='admin-login'),
     path('admin/profile/', views.admin_profile, name='admin-profile'),
     path('professors/', views.professor_list, name='professor-list'),
+   # path('admin/AddLesson/', ),
+   #path('admin/Editlesson/', ),
+   # path('admin/Deletelesson/', ),
+    # path('admin/ ViewLessons/', ),
 ]
