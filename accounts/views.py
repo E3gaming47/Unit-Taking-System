@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
+
 
 from .models import User
 from .serializers import LoginSerializer, UserSerializer
@@ -11,7 +13,6 @@ from .serializers import LoginSerializer, UserSerializer
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
-
     def post(self, request):
         try:
             serializer = LoginSerializer(data=request.data)
@@ -44,12 +45,13 @@ class MeView(APIView):
         except Exception:
             return Response(
                 {"detail": "There was a problem retrieving user information"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_400_BAD_REQUEST
             )
 
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
+    
 
     def post(self, request):
         try:
