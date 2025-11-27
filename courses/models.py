@@ -22,6 +22,7 @@ class Course(models.Model):
     description = models.TextField(blank=True) #توضیحات
     units = models.PositiveSmallIntegerField(default=3) #تعداد واحدهای درس
     capacity = models.PositiveIntegerField(default=30) #ظرفیت کلاس
+    department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="courses")
     professor = models.ForeignKey( #استاد درس
         settings.AUTH_USER_MODEL,
         null=True,
