@@ -17,6 +17,16 @@ def login_page(request):
     return render(request, 'accounts/login.html')
 
 
+def admin_departments(request):
+    """Render admin departments page"""
+    return render(request, 'admin/departments.html')
+
+
+def admin_courses(request):
+    """Render admin courses page"""
+    return render(request, 'admin/courses.html')
+
+
 class LoginView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):

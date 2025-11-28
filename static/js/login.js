@@ -11,10 +11,14 @@ function loginForm() {
             this.loading = true;
 
             try {
-                await API.login(this.username, this.password);
+                const result = await API.login(this.username, this.password);
 
-                // Redirect to dashboard after successful login
-                window.location.href = '/dashboard/';
+                // Redirect based on user role
+                if (result.user.role === 'admin') {
+                    window.location.href = '/admin/departments/';
+                } else {
+                    window.location.href = '/dashboard/';
+                }
 
             } catch (err) {
                 this.error = err.message || 'نام کاربری یا رمز عبور اشتباه است';

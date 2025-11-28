@@ -1,0 +1,92 @@
+{% extends "admin/base.html" %}
+
+{% block title %}مدیریت دپارتمان‌ها - سیستم انتخاب واحد{% endblock %}
+
+{% block page_title %}مدیریت دپارتمان‌ها{% endblock %}
+
+{% block departments_active %}active{% endblock %}
+
+{% block content %}
+<div x-data="departmentsManager()" x-init="init()">
+    <!-- Alerts -->
+    <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
+    <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
+
+    <!-- Header -->
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <h2>لیست دپارتمان‌ها</h2>
+        <button class="btn btn-primary" @click="openAddModal()">افزودن دپارتمان جدید</button>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="loading">
+        <div class="spinner"></div>
+        <p>در حال بارگذاری...</p>
+    </div>
+
+    <!-- Table -->
+    <div x-show="!loading" class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>کد دپارتمان</th>
+                    <th>نام دپارتمان</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="dept in departments" :key="dept.id">
+                    <tr>
+                        <td x-text="dept.code"></td>
+                        <td x-text="dept.name"></td>
+                        <td>
+                            <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(dept)">ویرایش</button>
+                            <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteDepartment(dept.id, dept.name)">حذف</button>
+                        </td>
+                    </tr>
+                </template>
+                <tr x-show="departments.length === 0">
+                    <td colspan="3" style="text-align: center; padding: 40px; color: var(--gray-color);">
+                        دپارتمانی وجود ندارد
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" :class="{ active: showModal }" @click.self="closeModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 x-text="editingId ? 'ویرایش دپارتمان' : 'افزودن دپارتمان جدید'"></h2>
+                <button class="modal-close" @click="closeModal()">×</button>
+            </div>
+            
+            <div x-show="error" x-cloak class="alert alert-error" x-text="error" style="margin-bottom: 20px;"></div>
+            <div x-show="success" x-cloak class="alert alert-success" x-text="success" style="margin-bottom: 20px;"></div>
+
+            <form @submit.prevent="submitForm()">
+                <div class="form-group">
+                    <label>نام دپارتمان *</label>
+                    <input type="text" x-model="form.name" required>
+                </div>
+                <div class="form-group">
+                    <label>کد دپارتمان *</label>
+                    <input type="text" x-model="form.code" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="closeModal()">انصراف</button>
+                    <button type="submit" class="btn btn-primary">ذخیره</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+
+<script src="/static/js/departments.js"></script>
+{% endblock %}
+

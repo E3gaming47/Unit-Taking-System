@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}پنل مدیریت - سیستم انتخاب واحد{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="/static/js/api.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>سیستم جامع انتخاب واحد</h1>
+            <p>{% block page_title %}پنل مدیریت{% endblock %}</p>
+            <div style="text-align: left;">
+                <button class="btn btn-danger" style="padding: 8px 16px;" onclick="handleLogout()">خروج</button>
+            </div>
+        </div>
+
+        <div class="grid-layout">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <h3>منو</h3>
+                <ul class="sidebar-menu">
+                    <li><a href="/admin/departments/" class="{% block departments_active %}{% endblock %}">مدیریت دپارتمان‌ها</a></li>
+                    <li><a href="/admin/courses/" class="{% block courses_active %}{% endblock %}">مدیریت دروس</a></li>
+                </ul>
+            </aside>
+
+            <!-- Main Content -->
+            <main>
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script>
+        async function handleLogout() {
+            try {
+                await API.logout();
+                window.location.href = '/';
+            } catch (error) {
+                console.error('Logout error:', error);
+                // Still clear auth and redirect even if API call fails
+                API.clearAuth();
+                window.location.href = '/';
+            }
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+
