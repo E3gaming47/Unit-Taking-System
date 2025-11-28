@@ -12,9 +12,7 @@ class Department(models.Model):
         unique=True,              
     )
     
-    description = models.TextField(
-        blank=True,               
-    )
+
 
     class Meta:
         ordering = ["code"]       
