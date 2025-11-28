@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ورود به سیستم- سیستم انتخاب واحد</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#F5F5F5] text-[#4A4A4A] font-sans leading-6 antialiased">
+    <div class="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#FF6B35] to-[#4A90E2]">
+        <div class="bg-white p-10 rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.2)] w-full max-w-sm">
+            <h2 class="text-[#FF6B35] mb-7 text-center text-2xl font-semibold">ورود به سیستم </h2>
+            <form>
+                <div class="mb-5">
+                    <label for="username" class="block mb-2 text-[#4A4A4A] font-medium">نام کاربری</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        required
+                        placeholder="کد ورود"
+                        class="w-full p-3 border border-[#ddd] rounded-lg text-sm transition-colors focus:outline-none focus:border-[#FF6B35] rtl"
+                    >
+                </div>
+                <div class="mb-5">
+                    <label for="password" class="block mb-2 text-[#4A4A4A] font-medium">رمز عبور</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        required
+                        placeholder="رمز عبور را وارد کنید"
+                        class="w-full p-3 border border-[#ddd] rounded-lg text-sm transition-colors focus:outline-none focus:border-[#FF6B35] rtl"
+                    >
+                </div>
+                <button type="submit" class="bg-[#FF6B35] text-white w-full p-3 rounded-lg font-medium text-base cursor-pointer transition-all hover:bg-[#e55a2b] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed">
+                    ورود
+                </button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+
