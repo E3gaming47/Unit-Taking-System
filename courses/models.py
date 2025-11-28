@@ -16,7 +16,7 @@ class Course(models.Model):
         choices=[(i, i) for i in range(1, 5)]
     )
 
-    # اتصال به اپ دپارتمان
+    # Many-to-many relationship with Department
     departments = models.ManyToManyField(
         "departments.Department",
         blank=True,
