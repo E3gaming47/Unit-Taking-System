@@ -5,10 +5,16 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
+from django.shortcuts import render
 
 
 from .models import User
 from .serializers import LoginSerializer, UserSerializer
+
+
+def login_page(request):
+    """Render login page template"""
+    return render(request, 'accounts/login.html')
 
 
 class LoginView(APIView):

@@ -1,24 +1,33 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" x-data="loginForm()">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ورود به سیستم- سیستم انتخاب واحد</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="bg-[#F5F5F5] text-[#4A4A4A] font-sans leading-6 antialiased">
     <div class="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#FF6B35] to-[#4A90E2]">
         <div class="bg-white p-10 rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.2)] w-full max-w-sm">
             <h2 class="text-[#FF6B35] mb-7 text-center text-2xl font-semibold">ورود به سیستم </h2>
-            <form>
+            
+            <!-- Error Message -->
+            <div x-show="error" x-cloak class="mb-5 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm text-center">
+                <span x-text="error"></span>
+            </div>
+
+            <form @submit.prevent="handleLogin">
                 <div class="mb-5">
                     <label for="username" class="block mb-2 text-[#4A4A4A] font-medium">نام کاربری</label>
                     <input 
                         type="text" 
                         id="username" 
+                        x-model="username"
                         required
                         placeholder="کد ورود"
-                        class="w-full p-3 border border-[#ddd] rounded-lg text-sm transition-colors focus:outline-none focus:border-[#FF6B35] rtl"
+                        :disabled="loading"
+                        class="w-full p-3 border border-[#ddd] rounded-lg text-sm transition-colors focus:outline-none focus:border-[#FF6B35] rtl disabled:bg-gray-100 disabled:cursor-not-allowed"
                     >
                 </div>
                 <div class="mb-5">
@@ -26,17 +35,37 @@
                     <input 
                         type="password" 
                         id="password" 
+                        x-model="password"
                         required
                         placeholder="رمز عبور را وارد کنید"
-                        class="w-full p-3 border border-[#ddd] rounded-lg text-sm transition-colors focus:outline-none focus:border-[#FF6B35] rtl"
+                        :disabled="loading"
+                        class="w-full p-3 border border-[#ddd] rounded-lg text-sm transition-colors focus:outline-none focus:border-[#FF6B35] rtl disabled:bg-gray-100 disabled:cursor-not-allowed"
                     >
                 </div>
-                <button type="submit" class="bg-[#FF6B35] text-white w-full p-3 rounded-lg font-medium text-base cursor-pointer transition-all hover:bg-[#e55a2b] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed">
-                    ورود
+                <button 
+                    type="submit" 
+                    :disabled="loading"
+                    class="bg-[#FF6B35] text-white w-full p-3 rounded-lg font-medium text-base cursor-pointer transition-all hover:bg-[#e55a2b] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                >
+                    <span x-show="!loading">ورود</span>
+                    <span x-show="loading" class="flex items-center justify-center">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        در حال ورود...
+                    </span>
                 </button>
             </form>
         </div>
     </div>
+
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/login.js"></script>
 </body>
 </html>
 
