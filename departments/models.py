@@ -18,4 +18,4 @@ class Department(models.Model):
         ordering = ["code"]       
 
     def __str__(self):
-        return f"{self.code} - {self.name}"   # نمایش خوانا در پنل ادمین
+        return f"{self.code} - {self.name}"   # display friendly in admin panel
