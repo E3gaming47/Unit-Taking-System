@@ -3,9 +3,9 @@ from django.core.exceptions import ValidationError
 
 
 class Term(models.Model):
-    name = models.CharField(
-        max_length=64,
-        unique=True,                  
+    name = models.CharField( #اسم ترم
+        max_length=64, #حداکثر طول رشته ۶۴ کاراکتر است.
+        unique=True,   #یونیک باشه               
     )
     
     start_date = models.DateField()   # تاریخ شروع ترم
