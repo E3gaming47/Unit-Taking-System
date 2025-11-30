@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" x-data="loginForm()" x-cloak>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ورود — سیستم انتخاب واحد</title>
+
+  <!-- فونت فارسی -->
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- AlpineJS -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+
+    @keyframes shake {
+      10%, 90% { transform: translateX(-2px); }
+      20%, 80% { transform: translateX(4px); }
+      30%, 50%, 70% { transform: translateX(-8px); }
+      40%, 60% { transform: translateX(8px); }
+    }
+    .shake { animation: shake 420ms ease; }
+
+    body { font-family: "Vazirmatn"; }
+  </style>
+</head>
+
+<body class="min-h-screen bg-cover bg-center flex items-center justify-center p-6"
+      style="background-image: url('uni3.png');">
+
+
+
+  <!-- صحنه‌های نور پس‌زمینه -->
+  <div class="absolute inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute -left-96 -top-80 w-[650px] h-[650px] rounded-full bg-white/10 blur-3xl"></div>
+    <div class="absolute -right-96 -bottom-80 w-[500px] h-[500px] rounded-full bg-white/5 blur-2xl"></div>
+  </div>
+
+  <!-- کارت اصلی -->
+  <main class="relative z-10 w-full max-w-md">
+    <section :class="{'shake': !!error}" class="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-xl p-8 transition-all">
+
+      <header class="mb-6 text-center">
+        <h2 class="text-white text-2xl font-semibold">ورود به سیستم</h2>
+        <p class="text-white/70 mt-1 text-sm">سیستم انتخاب واحد دانشگاهی</p>
+      </header>
+
+      <!-- پیام خطا -->
+      <div x-show="error" x-transition class="mb-4">
+        <div class="bg-red-600/20 text-red-100 border border-red-600/25 p-3 rounded-lg text-sm text-center">
+          <span x-text="error"></span>
+        </div>
+      </div>
+
+      <!-- فرم -->
+      <form @submit.prevent="handleLogin" class="space-y-5">
+
+        <!-- نام کاربری -->
+        <div>
+          <label class="text-white/80 text-sm mb-1 block">نام کاربری</label>
+          <div class="relative">
+            <input 
+              id="username" 
+              type="text"
+              x-model="username"
+              :disabled="loading"
+              required
+              placeholder="کد ورود یا ایمیل"
+              class="w-full pr-11 pl-4 py-3 rounded-xl bg-white/60 border border-white/30 
+                     text-gray-900 placeholder-gray-600 focus:bg-white focus:border-white/60 focus:outline-none"
+            >
+            <span class="absolute inset-y-0 left-3 flex items-center text-gray-700/70 pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        <!-- رمز عبور -->
+        <div>
+          <label class="text-white/80 text-sm mb-1 block">رمز عبور</label>
+          <div class="relative">
+            <input 
+              id="password" 
+              :type="showPassword ? 'text' : 'password'"
+              x-model="password"
+              :disabled="loading"
+              required
+              placeholder="رمز عبور را وارد کنید"
+              class="w-full pr-11 pl-4 py-3 rounded-xl bg-white/60 border border-white/30
+                     text-gray-900 placeholder-gray-600 focus:bg-white focus:border-white/60 focus:outline-none"
+            >
+            <button type="button" x-on:click="showPassword = !showPassword" 
+              class="absolute inset-y-0 left-3 flex items-center p-1 text-gray-700/70">
+              
+              <!-- چشم بسته -->
+              <svg x-show="!showPassword" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M2.5 12a9.5 9.5 0 0 1 19 0 9.5 9.5 0 0 1-19 0z"/>
+              </svg>
+
+              <!-- چشم باز -->
+              <svg x-show="showPassword" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M13.875 18.825A10.05 10.05 0 0 1 12 19c-4.5 0-8.3-3-9.5-7 1.2-4 5-7 9.5-7 1 .02 2 .17 2.875.45"/>
+                <path d="M3 3l18 18"/>
+              </svg>
+
+            </button>
+          </div>
+        </div>
+
+        <!-- دکمه -->
+        <button 
+          type="submit"
+          :disabled="loading"
+          class="w-full py-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FF8650] text-white font-semibold shadow-lg
+                 hover:shadow-xl active:scale-95 transition disabled:opacity-60">
+
+          <span x-show="!loading">ورود</span>
+
+          <span x-show="loading" class="flex items-center justify-center gap-2">
+            <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0a12 12 0 000 24v-4a8 8 0 01-8-8z"/>
+            </svg>
+            در حال ورود...
+          </span>
+
+        </button>
+
+      </form>
+
+      <!-- فوتر -->
+      <footer class="text-center text-xs text-white/60 mt-6">
+        © <span x-text="new Date().getFullYear()"></span> دانشگاه شهید چمران اهواز
+      </footer>
+
+    </section>
+  </main>
+
+  <!-- Alpine component -->
+  <script>
+    function loginForm() {
+      return {
+        username: '',
+        password: '',
+        remember: false,
+        loading: false,
+        error: '',
+        showPassword: false,
+
+        async handleLogin() {
+          this.error = '';
+
+          if (!this.username.trim() || !this.password.trim()) {
+            this.error = 'لطفاً نام کاربری و رمز عبور را وارد کنید.';
+            return;
+          }
+
+          this.loading = true;
+          try {
+            const res = await fetch('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                username: this.username,
+                password: this.password,
+                remember: this.remember
+              }),
+            });
+
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              this.error = data.message || 'نام کاربری یا رمز اشتباه است.';
+              this.loading = false;
+              return;
+            }
+
+            const data = await res.json();
+            window.location.href = data.redirectTo ?? '/dashboard';
+
+          } catch (err) {
+            this.error = 'مشکل در اتصال به سرور. دوباره تلاش کنید.';
+          } finally {
+            this.loading = false;
+          }
+        }
+      }
+    }
+  </script>
+
+</body>
+</html>
