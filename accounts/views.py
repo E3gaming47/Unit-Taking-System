@@ -1,15 +1,16 @@
-from rest_framework.generics import CreateAPIView
-from rest_framework.views import APIView
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework import status
-from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from rest_framework_simplejwt.views import TokenRefreshView
 from django.shortcuts import render
-
+from django.db.models import Q
 
 from .models import User
-from .serializers import LoginSerializer, UserSerializer
+from .serializers import UserSerializer, UserCreateSerializer, LoginSerializer
+from .permissions import IsAdmin
 
 
 def login_page(request):
@@ -27,71 +28,119 @@ def admin_courses(request):
     return render(request, 'admin/courses.html')
 
 
-class LoginView(APIView):
-    permission_classes = [AllowAny]
-    def post(self, request):
-        try:
-            serializer = LoginSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
+class UserViewSet(viewsets.ModelViewSet):
 
-            user = serializer.validated_data["user"]
+    queryset = User.objects.all()
+    permission_classes = [IsAuthenticated, IsAdmin]
+    
+    def get_serializer_class(self):
+        
+        if self.action == 'create':
+            return UserCreateSerializer
+        return UserSerializer
 
-            refresh = RefreshToken.for_user(user)
-
-            return Response({
-                "user": UserSerializer(user).data,
-                "refresh": str(refresh),
-                "access": str(refresh.access_token)
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response(
-                {"detail": "There was a problem processing the request"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+    def get_queryset(self):
+        
+        queryset = User.objects.all()
+        role = self.request.query_params.get('role', None)
+        
+        if role:
+            queryset = queryset.filter(role=role)
+        
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(username__icontains=search) |
+                Q(email__icontains=search) |
+                Q(student_id__icontains=search) |
+                Q(professor_id__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
             )
+        
+        return queryset.order_by('-id')
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsAdmin])
+    def students(self, request):
+        students = User.objects.filter(role='student')
+        serializer = self.get_serializer(students, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsAdmin])
+    def professors(self, request):
+        professors = User.objects.filter(role='professor')
+        serializer = self.get_serializer(professors, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def me(self, request):
+
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
 
 
-class MeView(APIView):
-    permission_classes = [IsAuthenticated]
+class AuthViewSet(viewsets.ViewSet):
 
-    def get(self, request):
-        try:
-            return Response(UserSerializer(request.user).data, status=status.HTTP_200_OK)
+    permission_classes = [AllowAny]
 
-        except Exception:
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def login(self, request):
+       
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.validated_data["user"]
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            "user": UserSerializer(user).data,
+            "refresh": str(refresh),
+            "access": str(refresh.access_token)
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def logout(self, request):
+
+        refresh_token = request.data.get("refresh")
+
+        if not refresh_token:
             return Response(
-                {"detail": "There was a problem retrieving user information"},
+                {"detail": "Refresh token is required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-
-    def post(self, request):
         try:
-            refresh_token = request.data.get("refresh")
-
-            if not refresh_token:
-                return Response(
-                    {"detail": "Refresh token is required"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
             token = RefreshToken(refresh_token)
             token.blacklist()
-
-            return Response({"detail": "You have successfully logged out"}, status=status.HTTP_200_OK)
-
-        except TokenError:
             return Response(
-                {"detail": "Invalid or expired refresh token"},
+                {"detail": "You have successfully logged out"}, 
+                status=status.HTTP_200_OK
+            )
+        except TokenError as e:
+            return Response(
+                {"detail": f"Invalid or expired refresh token: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        except Exception:
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def refresh(self, request):
+
+        refresh_token = request.data.get("refresh")
+
+        if not refresh_token:
             return Response(
-                {"detail": "There was a problem processing the logout request"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"detail": "Refresh token is required"},
+                status=status.HTTP_400_BAD_REQUEST
             )
+
+        try:
+            refresh = RefreshToken(refresh_token)
+            return Response({
+                "access": str(refresh.access_token)
+            }, status=status.HTTP_200_OK)
+        except TokenError as e:
+            return Response(
+                {"detail": f"Invalid or expired refresh token: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
