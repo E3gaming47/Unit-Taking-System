@@ -7,10 +7,12 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.shortcuts import render
 from django.db.models import Q
-
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from .models import User
 from .serializers import UserSerializer, UserCreateSerializer, LoginSerializer
 from .permissions import IsAdmin
+from rest_framework.views import APIView
 
 
 def login_page(request):
@@ -144,3 +146,110 @@ class AuthViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
             
+class DepartmentsList(APIView):
+
+    @swagger_auto_schema(
+        operation_description="دریافت لیست دانشکده‌ها",
+        responses={200: "لیست دانشکده‌ها با موفقیت برگشت داده شد"}
+    )
+    def get(self, request):
+        data = [
+            {"id": 1, "name": "مهندسی"},
+            {"id": 2, "name": "علوم پایه"},
+        ]
+        return Response(data)
+    
+    
+class LoginView(APIView):
+
+    @swagger_auto_schema(
+        operation_description="ورود کاربر با شماره دانشجویی و رمز عبور",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "username": openapi.Schema(type=openapi.TYPE_STRING),
+                "password": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+            required=["username", "password"]
+        ),
+        responses={200: "ورود موفق", 401: "رمز یا نام کاربری اشتباه است"}
+    )
+    def post(self, request):
+        return Response({"msg": "ok"}, status=200)  
+    
+class CoursesList(APIView):
+
+    @swagger_auto_schema(
+        operation_description="دریافت لیست تمام درس‌ها",
+        responses={200: "لیست درس‌ها برگشت داده شد"}
+    )
+    def get(self, request):
+        data = [
+            {"id": 1, "title": "ریاضی ۱", "unit": 3},
+            {"id": 2, "title": "برنامه‌سازی", "unit": 3},
+        ]
+        return Response(data)
+
+class RegisterView(APIView):
+
+    @swagger_auto_schema(
+        operation_description="ثبت‌نام دانشجو",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "username": openapi.Schema(type=openapi.TYPE_STRING),
+                "password": openapi.Schema(type=openapi.TYPE_STRING),
+                "full_name": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+            required=["username", "password"]
+        ),
+        responses={201: "ثبت‌نام موفق"}
+    )
+    def post(self, request):
+        return Response({"msg": "ثبت‌نام شد"}, status=201)
+
+
+class SelectCourse(APIView):
+
+    @swagger_auto_schema(
+        operation_description="انتخاب واحد درس توسط دانشجو",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "course_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+            },
+            required=["course_id"]
+        ),
+        responses={200: "درس با موفقیت انتخاب شد"}
+    )
+    def post(self, request):
+        return Response({"msg": "درس انتخاب شد"})
+
+
+class RemoveCourse(APIView):
+
+    @swagger_auto_schema(
+        operation_description="حذف درس از انتخاب واحد",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "course_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+            },
+            required=["course_id"]
+        ),
+        responses={200: "درس حذف شد"}
+    )
+    def post(self, request):
+        return Response({"msg": "درس حذف شد"})
+
+
+class CourseDetail(APIView):
+
+    @swagger_auto_schema(
+        operation_description="جزئیات یک درس",
+        responses={200: "جزئیات درس"}
+    )
+    def get(self, request, id):
+        data = {"id": id, "title": "مثال", "unit": 3}
+        return Response(data)
+
