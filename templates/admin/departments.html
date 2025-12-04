@@ -18,6 +18,35 @@
         <button class="btn btn-primary" @click="openAddModal()">افزودن دپارتمان جدید</button>
     </div>
 
+    <!-- Search Filter -->
+    <div class="filter-section">
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: end;">
+            <!-- Search -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>جستجو (نام یا کد دپارتمان)</label>
+                <input 
+                    type="text" 
+                    x-model="searchText"
+                    @input.debounce.500ms="applySearch()"
+                    placeholder="جستجو بر اساس نام یا کد دپارتمان..."
+                >
+            </div>
+
+            <!-- Clear search button -->
+            <div>
+                <button 
+                    type="button"
+                    @click="clearSearch()"
+                    class="btn btn-secondary"
+                    style="padding: 10px 20px; white-space: nowrap;"
+                    :disabled="!searchText"
+                >
+                    پاک کردن جستجو
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading -->
     <div x-show="loading" class="loading">
         <div class="spinner"></div>
