@@ -8,11 +8,17 @@ class DepartmentSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "code"]
 
     def validate_name(self, value):
-        if Department.objects.filter(name__iexact=value).exists():
+        queryset = Department.objects.filter(name__iexact=value)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
             raise serializers.ValidationError("A department with this name already exists.")
         return value
 
     def validate_code(self, value):
-        if Department.objects.filter(code__iexact=value).exists():
+        queryset = Department.objects.filter(code__iexact=value)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
             raise serializers.ValidationError("A department with this code already exists.")
         return value
