@@ -7,6 +7,8 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.shortcuts import render
 from django.db.models import Q
+
+from api.pagination import StandardResultsSetPagination
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .models import User
@@ -30,10 +32,21 @@ def admin_courses(request):
     return render(request, 'admin/courses.html')
 
 
+def admin_students(request):
+    """Render admin students page"""
+    return render(request, 'admin/students.html')
+
+
+def admin_professors(request):
+    """Render admin professors page"""
+    return render(request, 'admin/professors.html')
+
+
 class UserViewSet(viewsets.ModelViewSet):
 
     queryset = User.objects.all()
     permission_classes = [IsAuthenticated, IsAdmin]
+    pagination_class = StandardResultsSetPagination
     
     def get_serializer_class(self):
         

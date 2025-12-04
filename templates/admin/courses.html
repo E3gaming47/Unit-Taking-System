@@ -18,6 +18,64 @@
         <button class="btn btn-primary" @click="openAddModal()">افزودن درس جدید</button>
     </div>
 
+    <!-- Search Filters -->
+    <div class="filter-section">
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; align-items: end;">
+            <!-- Search by name/code -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>جستجو (نام یا کد درس)</label>
+                <input 
+                    type="text" 
+                    x-model="searchText"
+                    @input.debounce.500ms="applyFilters()"
+                    placeholder="جستجو بر اساس نام یا کد درس..."
+                >
+            </div>
+
+            <!-- Filter by department -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>فیلتر بر اساس دپارتمان</label>
+                <select 
+                    x-model="selectedDepartment"
+                    @change="applyFilters()"
+                >
+                    <option value="">همه دپارتمان‌ها</option>
+                    <template x-for="dept in departments" :key="dept.id">
+                        <option :value="dept.id" x-text="dept.name + ' (' + dept.code + ')'"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- Filter by units -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>فیلتر بر اساس واحد</label>
+                <select 
+                    x-model="selectedUnits"
+                    @change="applyFilters()"
+                >
+                    <option value="">همه واحدها</option>
+                    <option value="1">1 واحد</option>
+                    <option value="2">2 واحد</option>
+                    <option value="3">3 واحد</option>
+                    <option value="4">4 واحد</option>
+                </select>
+            </div>
+
+            <!-- Clear filters button -->
+            <div>
+                <button 
+                    type="button"
+                    @click="clearFilters()"
+                    class="btn btn-secondary"
+                    style="padding: 10px 20px; white-space: nowrap;"
+                    :disabled="!searchText && !selectedDepartment && !selectedUnits"
+                >
+                    پاک کردن فیلترها
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading -->
     <div x-show="loading" class="loading">
         <div class="spinner"></div>
