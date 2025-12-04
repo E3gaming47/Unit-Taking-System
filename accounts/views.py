@@ -8,6 +8,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from django.shortcuts import render
 from django.db.models import Q
 
+from api.pagination import StandardResultsSetPagination
 from .models import User
 from .serializers import UserSerializer, UserCreateSerializer, LoginSerializer
 from .permissions import IsAdmin
@@ -28,10 +29,21 @@ def admin_courses(request):
     return render(request, 'admin/courses.html')
 
 
+def admin_students(request):
+    """Render admin students page"""
+    return render(request, 'admin/students.html')
+
+
+def admin_professors(request):
+    """Render admin professors page"""
+    return render(request, 'admin/professors.html')
+
+
 class UserViewSet(viewsets.ModelViewSet):
 
     queryset = User.objects.all()
     permission_classes = [IsAuthenticated, IsAdmin]
+    pagination_class = StandardResultsSetPagination
     
     def get_serializer_class(self):
         

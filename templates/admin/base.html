@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}پنل مدیریت - سیستم انتخاب واحد{% endblock %}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/estedadfont@v5.0.3/dist/font-face.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/shabnam-font@latest/dist/font-face.css">
     <link rel="stylesheet" href="/static/css/admin.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="/static/js/api.js"></script>
@@ -27,6 +27,8 @@
                 <ul class="sidebar-menu">
                     <li><a href="/admin/departments/" class="{% block departments_active %}{% endblock %}">مدیریت دپارتمان‌ها</a></li>
                     <li><a href="/admin/courses/" class="{% block courses_active %}{% endblock %}">مدیریت دروس</a></li>
+                    <li><a href="/admin/students/" class="{% block students_active %}{% endblock %}">مدیریت دانشجویان</a></li>
+                    <li><a href="/admin/professors/" class="{% block professors_active %}{% endblock %}">مدیریت اساتید</a></li>
                 </ul>
             </aside>
 

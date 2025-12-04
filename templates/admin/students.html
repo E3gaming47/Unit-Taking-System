@@ -1,0 +1,143 @@
+{% extends "admin/base.html" %}
+
+{% block title %}مدیریت دانشجویان - سیستم انتخاب واحد{% endblock %}
+
+{% block page_title %}مدیریت دانشجویان{% endblock %}
+
+{% block students_active %}active{% endblock %}
+
+{% block content %}
+<div x-data="studentsManager()" x-init="init()">
+    <!-- Alerts -->
+    <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
+    <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
+
+    <!-- Header -->
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <h2>لیست دانشجویان</h2>
+        <button class="btn btn-primary" @click="openAddModal()">افزودن دانشجوی جدید</button>
+    </div>
+
+    <!-- Search Filter -->
+    <div class="filter-section">
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: end;">
+            <!-- Search -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>جستجو (نام کاربری، ایمیل، شماره دانشجویی، نام)</label>
+                <input 
+                    type="text" 
+                    x-model="searchText"
+                    @input.debounce.500ms="applySearch()"
+                    placeholder="جستجو..."
+                >
+            </div>
+
+            <!-- Clear search button -->
+            <div>
+                <button 
+                    type="button"
+                    @click="clearSearch()"
+                    class="btn btn-secondary"
+                    style="padding: 10px 20px; white-space: nowrap;"
+                    :disabled="!searchText"
+                >
+                    پاک کردن جستجو
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="loading">
+        <div class="spinner"></div>
+        <p>در حال بارگذاری...</p>
+    </div>
+
+    <!-- Table -->
+    <div x-show="!loading" class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>نام کاربری</th>
+                    <th>نام</th>
+                    <th>نام خانوادگی</th>
+                    <th>شماره دانشجویی</th>
+                    <th>ایمیل</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="student in students" :key="student.id">
+                    <tr>
+                        <td x-text="student.username"></td>
+                        <td x-text="student.first_name || '-'"></td>
+                        <td x-text="student.last_name || '-'"></td>
+                        <td x-text="student.student_id || '-'"></td>
+                        <td x-text="student.email || '-'"></td>
+                        <td>
+                            <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(student)">ویرایش</button>
+                            <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteStudent(student.id, student.username)">حذف</button>
+                        </td>
+                    </tr>
+                </template>
+                <tr x-show="students.length === 0">
+                    <td colspan="6" style="text-align: center; padding: 40px; color: var(--gray-color);">
+                        دانشجویی وجود ندارد
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" :class="{ active: showModal }" @click.self="closeModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 x-text="editingId ? 'ویرایش دانشجو' : 'افزودن دانشجوی جدید'"></h2>
+                <button class="modal-close" @click="closeModal()">×</button>
+            </div>
+            
+            <div x-show="error" x-cloak class="alert alert-error" x-text="error" style="margin-bottom: 20px;"></div>
+            <div x-show="success" x-cloak class="alert alert-success" x-text="success" style="margin-bottom: 20px;"></div>
+
+            <form @submit.prevent="submitForm()">
+                <div class="form-group">
+                    <label>نام کاربری *</label>
+                    <input type="text" x-model="form.username" required :disabled="editingId">
+                </div>
+                <div class="form-group">
+                    <label>شماره دانشجویی *</label>
+                    <input type="text" x-model="form.student_id" required>
+                </div>
+                <div class="form-group">
+                    <label>نام</label>
+                    <input type="text" x-model="form.first_name">
+                </div>
+                <div class="form-group">
+                    <label>نام خانوادگی</label>
+                    <input type="text" x-model="form.last_name">
+                </div>
+                <div class="form-group">
+                    <label>ایمیل</label>
+                    <input type="email" x-model="form.email">
+                </div>
+                <div class="form-group">
+                    <label>رمز عبور <span x-show="editingId">(اختیاری - در صورت خالی بودن تغییر نمی‌کند)</span><span x-show="!editingId">*</span></label>
+                    <input type="password" x-model="form.password" :required="!editingId">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="closeModal()">انصراف</button>
+                    <button type="submit" class="btn btn-primary">ذخیره</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+
+<script src="/static/js/students.js"></script>
+{% endblock %}
+
