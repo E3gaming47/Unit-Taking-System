@@ -22,7 +22,7 @@ urlpatterns = [
 
     path('login-page/', login_page, name='login_page'),
 
-    path('/dashboard/', dashboard_redirect, name='dashboard-redirect'),
+    path('dashboard/', dashboard_redirect, name='dashboard-redirect'),
 
     path('admin/dashboard/', admin_dashboard, name='admin-dashboard'),
     path('admin/departments/', admin_departments, name='admin-departments'),

@@ -1,3 +1,4 @@
+from datetime import date
 from django.db import models
 from django.core.exceptions import ValidationError
 
@@ -5,13 +6,13 @@ from django.core.exceptions import ValidationError
 class Term(models.Model):
     name = models.CharField(max_length=64, unique=True)
 
-    start_date = models.DateField()     # تاریخ شروع ترم
-    end_date = models.DateField()     # تاریخ پایان سمی ترم
-    registration_start = models.DateField()     # تاریخ شروع بازه انتخاب واحد
-    registration_end = models.DateField()    # تاریخ پایان بازه انتخاب واحد
+    start_date = models.DateField(null=False, blank=False)     # تاریخ شروع ترم
+    end_date = models.DateField(null=False, blank=False)     # تاریخ پایان سمی ترم
+    registration_start = models.DateField(null=False, blank=False, default=date.today)     # تاریخ شروع بازه انتخاب واحد
+    registration_end = models.DateField(null=False, blank=False, default=date.today)    # تاریخ پایان بازه انتخاب واحد
 
 
-    is_active = models.BooleanField(default=False)    # مشخص می‌کند آیا این ترم، ترم فعال سیستم است یا نه
+    is_active = models.BooleanField(default=False, null=False, blank=False)    # مشخص می‌کند آیا این ترم، ترم فعال سیستم است یا نه
 
 
     class Meta:

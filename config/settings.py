@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "departments",
     "courses",
     "terms",
+    "offerings",
     "registration",
     "grading",
     "requests",
