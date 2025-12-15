@@ -67,7 +67,7 @@ const API = {
      */
     async login(username, password) {
         try {
-            const response = await fetch(`${this.baseURL}/accounts/login/`, {
+            const response = await fetch(`${this.baseURL}/accounts/auth/login/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -126,7 +126,7 @@ const API = {
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
             try {
-                const response = await fetch(`${this.baseURL}/accounts/logout/`, {
+                const response = await fetch(`${this.baseURL}/accounts/auth/logout/`, {
                     method: 'POST',
                     headers: this.getAuthHeaders(),
                     body: JSON.stringify({ refresh: refreshToken })
@@ -144,17 +144,58 @@ const API = {
         this.clearAuth();
     },
 
+    /**
+     * Refresh access token
+     */
+    async refreshToken() {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (!refreshToken) {
+            throw new Error('No refresh token available');
+        }
+
+        try {
+            const response = await fetch(`${this.baseURL}/accounts/auth/refresh/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ refresh: refreshToken })
+            });
+
+            const data = await this.handleResponse(response);
+            localStorage.setItem('access_token', data.access);
+            return data.access;
+        } catch (error) {
+            this.clearAuth();
+            throw error;
+        }
+    },
+
     // ========== DEPARTMENTS API ==========
     
     /**
-     * Get all departments
+     * Get all departments (with pagination support)
+     * @param {Object} params - Query parameters (page, page_size, search, ordering)
      */
-    async getDepartments() {
-        const response = await fetch(`${this.baseURL}/departments/departments/`, {
+    async getDepartments(params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.append('page', params.page);
+        if (params.page_size) queryParams.append('page_size', params.page_size);
+        if (params.search) queryParams.append('search', params.search);
+        if (params.ordering) queryParams.append('ordering', params.ordering);
+        
+        const url = `${this.baseURL}/departments/departments/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        const response = await fetch(url, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
-        return this.handleResponse(response);
+        const data = await this.handleResponse(response);
+        
+        // Handle paginated response
+        if (data.results) {
+            return data.results; // Return just the results array
+        }
+        return data; // Return as-is if not paginated
     },
 
     /**
@@ -209,14 +250,30 @@ const API = {
     // ========== COURSES API ==========
 
     /**
-     * Get all courses
+     * Get all courses (with pagination and filtering support)
+     * @param {Object} params - Query parameters (page, page_size, search, department, units, ordering)
      */
-    async getCourses() {
-        const response = await fetch(`${this.baseURL}/courses/`, {
+    async getCourses(params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.append('page', params.page);
+        if (params.page_size) queryParams.append('page_size', params.page_size);
+        if (params.search) queryParams.append('search', params.search);
+        if (params.department) queryParams.append('department', params.department);
+        if (params.units) queryParams.append('units', params.units);
+        if (params.ordering) queryParams.append('ordering', params.ordering);
+        
+        const url = `${this.baseURL}/courses/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        const response = await fetch(url, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
-        return this.handleResponse(response);
+        const data = await this.handleResponse(response);
+        
+        // Handle paginated response
+        if (data.results) {
+            return data.results; // Return just the results array
+        }
+        return data; // Return as-is if not paginated
     },
 
     /**
@@ -259,6 +316,83 @@ const API = {
      */
     async deleteCourse(id) {
         const response = await fetch(`${this.baseURL}/courses/${id}/`, {
+            method: 'DELETE',
+            headers: this.getAuthHeaders()
+        });
+        if (response.status === 204) {
+            return null;
+        }
+        return this.handleResponse(response);
+    },
+
+    // ========== USERS API ==========
+
+    /**
+     * Get all users (with pagination and filtering support)
+     * @param {Object} params - Query parameters (page, page_size, search, role, ordering)
+     */
+    async getUsers(params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.append('page', params.page);
+        if (params.page_size) queryParams.append('page_size', params.page_size);
+        if (params.search) queryParams.append('search', params.search);
+        if (params.role) queryParams.append('role', params.role);
+        if (params.ordering) queryParams.append('ordering', params.ordering);
+        
+        const url = `${this.baseURL}/accounts/users/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+        const data = await this.handleResponse(response);
+        
+        // Handle paginated response
+        if (data.results) {
+            return data.results; // Return just the results array
+        }
+        return data; // Return as-is if not paginated
+    },
+
+    /**
+     * Get single user by ID
+     */
+    async getUser(id) {
+        const response = await fetch(`${this.baseURL}/accounts/users/${id}/`, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Create new user
+     */
+    async createUser(data) {
+        const response = await fetch(`${this.baseURL}/accounts/users/`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Update user
+     */
+    async updateUser(id, data) {
+        const response = await fetch(`${this.baseURL}/accounts/users/${id}/`, {
+            method: 'PUT',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Delete user
+     */
+    async deleteUser(id) {
+        const response = await fetch(`${this.baseURL}/accounts/users/${id}/`, {
             method: 'DELETE',
             headers: this.getAuthHeaders()
         });

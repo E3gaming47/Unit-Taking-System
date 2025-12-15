@@ -7,6 +7,7 @@ function departmentsManager() {
         success: '',
         showModal: false,
         editingId: null,
+        searchText: '',
         form: {
             name: '',
             code: ''
@@ -20,12 +21,30 @@ function departmentsManager() {
             this.loading = true;
             this.error = '';
             try {
-                this.departments = await API.getDepartments();
+                const params = {};
+                
+                // Add search parameter
+                if (this.searchText && this.searchText.trim()) {
+                    params.search = this.searchText.trim();
+                }
+                
+                this.departments = await API.getDepartments(params);
             } catch (err) {
                 this.error = err.message || 'خطا در بارگذاری دپارتمان‌ها';
             } finally {
                 this.loading = false;
             }
+        },
+
+        // Apply search filter
+        applySearch() {
+            this.loadDepartments();
+        },
+
+        // Clear search
+        clearSearch() {
+            this.searchText = '';
+            this.loadDepartments();
         },
 
         openAddModal() {
