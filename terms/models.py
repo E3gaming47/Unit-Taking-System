@@ -14,6 +14,9 @@ class Term(models.Model):
 
     is_active = models.BooleanField(default=False, null=False, blank=False)    # مشخص می‌کند آیا این ترم، ترم فعال سیستم است یا نه
 
+    min_units = models.PositiveSmallIntegerField(default=0, null=False, blank=False)    # حداقل تعداد واحد قابل اخذ در این ترم
+    max_units = models.PositiveSmallIntegerField(default=20, null=False, blank=False)    # حداکثر تعداد واحد قابل اخذ در این ترم
+
 
     class Meta:
         # هنگام گرفتن لیست ترم‌ها، جدیدترین ترم‌ها اول نمایش داده می‌شوند
@@ -35,6 +38,9 @@ class Term(models.Model):
 
         if self.registration_start >= self.registration_end:
             errors["registration_end"] = "پایان انتخاب واحد باید بعد از شروع آن باشد."
+
+        if self.min_units > self.max_units:
+            errors["max_units"] = "حداکثر واحد باید بیشتر یا مساوی حداقل واحد باشد."
 
         if not (self.start_date <= self.registration_start <= self.end_date):
             errors["registration_start"] = "شروع انتخاب واحد باید داخل بازه ترم باشد."
