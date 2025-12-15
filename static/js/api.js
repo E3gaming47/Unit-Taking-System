@@ -88,7 +88,8 @@ const API = {
             return {
                 user: data.user,
                 accessToken: data.access,
-                refreshToken: data.refresh
+                refreshToken: data.refresh,
+                redirect_url: data.redirect_url
             };
         } catch (error) {
             throw error;
