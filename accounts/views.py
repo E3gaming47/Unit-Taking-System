@@ -3,8 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
-from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.exceptions import TokenError
 from django.shortcuts import render
 from django.db.models import Q
 
@@ -77,22 +76,31 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsAdmin])
     def students(self, request):
-        students = User.objects.filter(role='student')
-        serializer = self.get_serializer(students, many=True)
+        queryset = self.filter_queryset(
+            User.objects.filter(role='student')
+        )
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsAdmin])
     def professors(self, request):
-        professors = User.objects.filter(role='professor')
-        serializer = self.get_serializer(professors, many=True)
+        queryset = self.filter_queryset(
+            User.objects.filter(role='professor')
+        )
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
-    def me(self, request):
-
-        serializer = UserSerializer(request.user)
-        return Response(serializer.data)
-
 
 class AuthViewSet(viewsets.ViewSet):
 
