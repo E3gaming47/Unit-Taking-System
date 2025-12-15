@@ -1,0 +1,182 @@
+{% extends "admin/base.html" %}
+
+{% block title %}مدیریت ارائه ترم - سیستم انتخاب واحد{% endblock %}
+
+{% block page_title %}مدیریت ارائه ترم{% endblock %}
+
+{% block term_offerings_active %}active{% endblock %}
+
+{% block content %}
+<div x-data="termOfferingsManager()" x-init="init()">
+    <!-- Alerts -->
+    <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
+    <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
+
+    <!-- Header -->
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <h2>لیست ارائه‌های ترم</h2>
+        <button class="btn btn-primary" @click="openAddModal()">افزودن ارائه جدید</button>
+    </div>
+
+    <!-- Search Filters -->
+    <div class="filter-section">
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; align-items: end;">
+            <!-- Search -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>جستجو (کد درس، نام درس، استاد، ترم)</label>
+                <input 
+                    type="text" 
+                    x-model="searchText"
+                    @input.debounce.500ms="applyFilters()"
+                    placeholder="جستجو..."
+                >
+            </div>
+
+            <!-- Filter by term -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>فیلتر بر اساس ترم</label>
+                <select 
+                    x-model="selectedTerm"
+                    @change="applyFilters()"
+                >
+                    <option value="">همه ترم‌ها</option>
+                    <template x-for="term in terms" :key="term.id">
+                        <option :value="term.id" x-text="term.name"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- Filter by department -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>فیلتر بر اساس دپارتمان</label>
+                <select 
+                    x-model="selectedDepartment"
+                    @change="applyFilters()"
+                >
+                    <option value="">همه دپارتمان‌ها</option>
+                    <template x-for="dept in departments" :key="dept.id">
+                        <option :value="dept.id" x-text="dept.name + ' (' + dept.code + ')'"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- Clear filters button -->
+            <div>
+                <button 
+                    type="button"
+                    @click="clearFilters()"
+                    class="btn btn-secondary"
+                    style="padding: 10px 20px; white-space: nowrap;"
+                    :disabled="!searchText && !selectedTerm && !selectedDepartment"
+                >
+                    پاک کردن فیلترها
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="loading">
+        <div class="spinner"></div>
+        <p>در حال بارگذاری...</p>
+    </div>
+
+    <!-- Table -->
+    <div x-show="!loading" class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ترم</th>
+                    <th>درس</th>
+                    <th>استاد</th>
+                    <th>شماره بخش</th>
+                    <th>ظرفیت</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="section in sections" :key="section.id">
+                    <tr>
+                        <td x-text="section.term"></td>
+                        <td x-text="section.course"></td>
+                        <td x-text="section.professor"></td>
+                        <td x-text="section.section_number"></td>
+                        <td x-text="section.capacity"></td>
+                        <td>
+                            <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(section)">ویرایش</button>
+                            <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteSection(section.id, section.course)">حذف</button>
+                        </td>
+                    </tr>
+                </template>
+                <tr x-show="sections.length === 0">
+                    <td colspan="6" style="text-align: center; padding: 40px; color: var(--gray-color);">
+                        ارائه‌ای وجود ندارد
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" :class="{ active: showModal }" @click.self="closeModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 x-text="editingId ? 'ویرایش ارائه' : 'افزودن ارائه جدید'"></h2>
+                <button class="modal-close" @click="closeModal()">×</button>
+            </div>
+            
+            <div x-show="error" x-cloak class="alert alert-error" x-text="error" style="margin-bottom: 20px;"></div>
+            <div x-show="success" x-cloak class="alert alert-success" x-text="success" style="margin-bottom: 20px;"></div>
+
+            <form @submit.prevent="submitForm()">
+                <div class="form-group">
+                    <label>ترم *</label>
+                    <select x-model="form.term" required>
+                        <option value="">انتخاب ترم</option>
+                        <template x-for="term in terms" :key="term.id">
+                            <option :value="term.id" x-text="term.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>درس *</label>
+                    <select x-model="form.course" required>
+                        <option value="">انتخاب درس</option>
+                        <template x-for="course in courses" :key="course.id">
+                            <option :value="course.id" x-text="course.code + ' - ' + course.title"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>استاد *</label>
+                    <select x-model="form.professor" required>
+                        <option value="">انتخاب استاد</option>
+                        <template x-for="prof in professors" :key="prof.id">
+                            <option :value="prof.id" x-text="prof.username + (prof.first_name ? ' (' + prof.first_name + ' ' + (prof.last_name || '') + ')' : '')"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>شماره بخش *</label>
+                    <input type="number" x-model="form.section_number" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>ظرفیت *</label>
+                    <input type="number" x-model="form.capacity" min="1" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="closeModal()">انصراف</button>
+                    <button type="submit" class="btn btn-primary">ذخیره</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+
+<script src="/static/js/term-offerings.js"></script>
+{% endblock %}
+

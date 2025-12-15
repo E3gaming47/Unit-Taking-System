@@ -8,7 +8,10 @@ from .views import (
     admin_courses,
     admin_students,
     admin_professors,
+    admin_terms,
+    admin_term_offerings,
     student_dashboard,
+    student_offered_lessons,
     professor_dashboard,
 )
 from .views import UserViewSet, AuthViewSet
@@ -20,6 +23,7 @@ router.register(r'auth', AuthViewSet, basename='auth')
 urlpatterns = [
     # Specific routes first (before router)
     path('student/dashboard/', student_dashboard, name='student-dashboard'),
+    path('student/offered-lessons/', student_offered_lessons, name='student-offered-lessons'),
     path('professor/dashboard/', professor_dashboard, name='professor-dashboard'),
     
     path('login-page/', login_page, name='login_page'),
@@ -29,6 +33,8 @@ urlpatterns = [
     path('admin/courses/', admin_courses, name='admin-courses'),
     path('admin/students/', admin_students, name='admin-students'),
     path('admin/professors/', admin_professors, name='admin-professors'),
+    path('admin/terms/', admin_terms, name='admin-terms'),
+    path('admin/term-offerings/', admin_term_offerings, name='admin-term-offerings'),
 
     # Router URLs last
     path('', include(router.urls)),

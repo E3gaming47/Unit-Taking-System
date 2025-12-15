@@ -1,0 +1,129 @@
+{% extends "admin/base.html" %}
+
+{% block title %}مدیریت ترم‌ها - سیستم انتخاب واحد{% endblock %}
+
+{% block page_title %}مدیریت ترم‌ها{% endblock %}
+
+{% block terms_active %}active{% endblock %}
+
+{% block content %}
+<div x-data="termsManager()" x-init="init()">
+    <!-- Alerts -->
+    <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
+    <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
+
+    <!-- Header -->
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <h2>لیست ترم‌ها</h2>
+        <button class="btn btn-primary" @click="openAddModal()">افزودن ترم جدید</button>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="loading">
+        <div class="spinner"></div>
+        <p>در حال بارگذاری...</p>
+    </div>
+
+    <!-- Table -->
+    <div x-show="!loading" class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>نام ترم</th>
+                    <th>تاریخ شروع</th>
+                    <th>تاریخ پایان</th>
+                    <th>شروع انتخاب واحد</th>
+                    <th>پایان انتخاب واحد</th>
+                    <th>حداقل واحد</th>
+                    <th>حداکثر واحد</th>
+                    <th>وضعیت</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="term in terms" :key="term.id">
+                    <tr>
+                        <td x-text="term.name"></td>
+                        <td x-text="formatDate(term.start_date)"></td>
+                        <td x-text="formatDate(term.end_date)"></td>
+                        <td x-text="formatDate(term.registration_start)"></td>
+                        <td x-text="formatDate(term.registration_end)"></td>
+                        <td x-text="term.min_units || '-'"></td>
+                        <td x-text="term.max_units || '-'"></td>
+                        <td>
+                            <span x-show="term.is_active" style="color: var(--success); font-weight: bold;">فعال</span>
+                            <span x-show="!term.is_active" style="color: var(--gray-color);">غیرفعال</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(term)">ویرایش</button>
+                            <button x-show="term.is_active" class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="deactivateTerm(term.id)">غیرفعال کردن</button>
+                            <button x-show="!term.is_active" class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="activateTerm(term.id)">فعال کردن</button>
+                            <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteTerm(term.id, term.name)" :disabled="term.is_active">حذف</button>
+                        </td>
+                    </tr>
+                </template>
+                <tr x-show="terms.length === 0">
+                    <td colspan="9" style="text-align: center; padding: 40px; color: var(--gray-color);">
+                        ترمی وجود ندارد
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" :class="{ active: showModal }" @click.self="closeModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 x-text="editingId ? 'ویرایش ترم' : 'افزودن ترم جدید'"></h2>
+                <button class="modal-close" @click="closeModal()">×</button>
+            </div>
+            
+            <div x-show="error" x-cloak class="alert alert-error" x-text="error" style="margin-bottom: 20px;"></div>
+            <div x-show="success" x-cloak class="alert alert-success" x-text="success" style="margin-bottom: 20px;"></div>
+
+            <form @submit.prevent="submitForm()">
+                <div class="form-group">
+                    <label>نام ترم *</label>
+                    <input type="text" x-model="form.name" required>
+                </div>
+                <div class="form-group">
+                    <label>تاریخ شروع ترم *</label>
+                    <input type="date" x-model="form.start_date" required>
+                </div>
+                <div class="form-group">
+                    <label>تاریخ پایان ترم *</label>
+                    <input type="date" x-model="form.end_date" required>
+                </div>
+                <div class="form-group">
+                    <label>تاریخ شروع انتخاب واحد *</label>
+                    <input type="date" x-model="form.registration_start" required>
+                </div>
+                <div class="form-group">
+                    <label>تاریخ پایان انتخاب واحد *</label>
+                    <input type="date" x-model="form.registration_end" required>
+                </div>
+                <div class="form-group">
+                    <label>حداقل واحد *</label>
+                    <input type="number" x-model="form.min_units" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>حداکثر واحد *</label>
+                    <input type="number" x-model="form.max_units" min="1" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="closeModal()">انصراف</button>
+                    <button type="submit" class="btn btn-primary">ذخیره</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+
+<script src="/static/js/terms.js"></script>
+{% endblock %}
+
