@@ -1,8 +1,13 @@
 from django.contrib import admin
-from django.urls import path, include
-from accounts.views import login_page, admin_departments, admin_courses, admin_students, admin_professors
-from accounts.views import login_page, admin_departments, admin_courses
-from django.urls import path, re_path
+from django.urls import include, path, re_path
+
+from accounts.views import (
+    admin_courses,
+    admin_departments,
+    admin_professors,
+    admin_students,
+    login_page,
+)
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -28,8 +33,9 @@ urlpatterns = [
     path("admin/departments/", admin_departments, name="admin_departments"),
     path("admin/courses/", admin_courses, name="admin_courses"),
     path("admin/students/", admin_students, name="admin_students"),
-    path("admin/professors/", admin_professors, name="admin_professors"),
-    
+    path("admin/professors/", admin_professors, name="admin_professors"),\
+
+    path("api/offerings/", include("offerings.urls")),
     path("api/accounts/", include("accounts.urls")),
     path("api/departments/", include("departments.urls")),
     path("api/courses/", include("courses.urls")),
