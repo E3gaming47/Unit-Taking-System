@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from accounts.views import login_page, admin_dashboard, admin_departments, admin_courses, admin_students, admin_professors
+from accounts.views import login_page, admin_dashboard, admin_departments, admin_courses, admin_students, admin_professors, dashboard_redirect
 from django.urls import path, re_path
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
@@ -24,6 +24,7 @@ urlpatterns = [
     path("django-admin/", admin.site.urls),  # Changed to avoid conflict
     
     path("", login_page, name="login_page"),
+    path("dashboard/", dashboard_redirect, name="dashboard_redirect"),
     path("admin/dashboard/", admin_dashboard, name="admin_dashboard"),
     path("admin/departments/", admin_departments, name="admin_departments"),
     path("admin/courses/", admin_courses, name="admin_courses"),
