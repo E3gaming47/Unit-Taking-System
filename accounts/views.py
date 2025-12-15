@@ -31,11 +31,11 @@ def dashboard_redirect(request):
     user = request.user
 
     if user.role == "admin":
-        return redirect('admin-dashboard')
+        return redirect('/admin/dashboard/')
     elif user.role == "student":
-        return redirect('student-dashboard')
+        return redirect('/api/accounts/student/dashboard/')
     elif user.role == "professor":
-        return redirect('professor-dashboard')
+        return redirect('/api/accounts/professor/dashboard/')
 
     return HttpResponseForbidden("Invalid role")
 
@@ -157,7 +157,7 @@ class AuthViewSet(viewsets.ViewSet):
         refresh = RefreshToken.for_user(user)
 
         if user.role == "admin":
-            redirect_url = "/admin/departments/"
+            redirect_url = "/admin/dashboard/"
         elif user.role == "student":
             redirect_url = "/api/accounts/student/dashboard/"
         elif user.role == "professor":
