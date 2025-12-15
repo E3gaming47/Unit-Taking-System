@@ -1,13 +1,64 @@
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>Student Dashboard</title>
-</head>
-<body>
-    <h1>Student Dashboard</h1>
-    
-</body>
-</html>
+{% extends "students/base.html" %}
 
+{% block title %}داشبورد - سیستم انتخاب واحد{% endblock %}
 
+{% block page_title %}داشبورد{% endblock %}
+
+{% block dashboard_active %}active{% endblock %}
+
+{% block content %}
+<div x-data="studentDashboardManager()" x-init="init()">
+    <!-- Alerts -->
+    <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
+    <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="loading">
+        <div class="spinner"></div>
+        <p>در حال بارگذاری...</p>
+    </div>
+
+    <!-- Student Info -->
+    <div x-show="!loading && studentInfo" class="table-container">
+        <h2 style="margin-bottom: 20px; color: var(--primary-color);">اطلاعات دانشجو</h2>
+        <table>
+            <tbody>
+                <tr>
+                    <th style="width: 200px;">نام کاربری</th>
+                    <td x-text="studentInfo.username || '-'"></td>
+                </tr>
+                <tr>
+                    <th>شماره دانشجویی</th>
+                    <td x-text="studentInfo.student_id || '-'"></td>
+                </tr>
+                <tr>
+                    <th>ایمیل</th>
+                    <td x-text="studentInfo.email || '-'"></td>
+                </tr>
+                <tr>
+                    <th>نام</th>
+                    <td x-text="studentInfo.first_name || '-'"></td>
+                </tr>
+                <tr>
+                    <th>نام خانوادگی</th>
+                    <td x-text="studentInfo.last_name || '-'"></td>
+                </tr>
+                <tr>
+                    <th>نقش</th>
+                    <td x-text="studentInfo.role || '-'"></td>
+                </tr>
+                <tr>
+                    <th>شناسه کاربری</th>
+                    <td x-text="studentInfo.id || '-'"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+
+<script src="/static/js/student-dashboard.js"></script>
+{% endblock %}
