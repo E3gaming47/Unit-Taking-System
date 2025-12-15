@@ -1,24 +1,50 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
-from django.shortcuts import render
+from django.contrib.auth import login as django_login
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.http import HttpResponseForbidden
+from django.shortcuts import render, redirect
+
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from api.pagination import StandardResultsSetPagination
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 from .models import User
-from .serializers import UserSerializer, UserCreateSerializer, LoginSerializer
 from .permissions import IsAdmin
-from rest_framework.views import APIView
+from .serializers import LoginSerializer, UserCreateSerializer, UserSerializer
 
 
 def login_page(request):
     """Render login page template"""
     return render(request, 'accounts/login.html')
+
+
+@login_required
+def dashboard_redirect(request):
+    """Redirect user to their role-based dashboard"""
+    user = request.user
+
+    if user.role == "admin":
+        return redirect('admin-dashboard')
+    elif user.role == "student":
+        return redirect('student-dashboard')
+    elif user.role == "professor":
+        return redirect('professor-dashboard')
+
+    return HttpResponseForbidden("Invalid role")
+
+
+@login_required
+def admin_dashboard(request):
+    if request.user.role != "admin":
+        return HttpResponseForbidden()
+    return render(request, 'admin/dashboard.html')
 
 
 def admin_departments(request):
@@ -39,6 +65,20 @@ def admin_students(request):
 def admin_professors(request):
     """Render admin professors page"""
     return render(request, 'admin/professors.html')
+
+@login_required
+def student_dashboard(request):
+    if request.user.role != "student":
+        return HttpResponseForbidden()
+    return render(request, 'students/dashboard.html')
+
+
+
+@login_required
+def professor_dashboard(request):
+    if request.user.role != "professor":
+        return HttpResponseForbidden()
+    return render(request, 'professors/dashboard.html')
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -108,18 +148,32 @@ class AuthViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def login(self, request):
-       
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data["user"]
+
+        django_login(request, user)
         refresh = RefreshToken.for_user(user)
 
-        return Response({
-            "user": UserSerializer(user).data,
-            "refresh": str(refresh),
-            "access": str(refresh.access_token)
-        }, status=status.HTTP_200_OK)
+        if user.role == "admin":
+            redirect_url = "/admin/departments/"
+        elif user.role == "student":
+            redirect_url = "/api/accounts/student/dashboard/"
+        elif user.role == "professor":
+            redirect_url = "/api/accounts/professor/dashboard/"
+        else:
+            redirect_url = "/"
+
+        return Response(
+            {
+                "user": UserSerializer(user).data,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+                "redirect_url": redirect_url,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request):

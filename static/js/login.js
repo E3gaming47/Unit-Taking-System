@@ -15,9 +15,17 @@ function loginForm() {
 
                 // Redirect based on user role
                 if (result.user.role === 'admin') {
+                    // Admin panel dashboard (departments page as start)
                     window.location.href = '/admin/departments/';
+                } else if (result.user.role === 'student') {
+                    // Student dashboard (HTML template)
+                    window.location.href = '/api/accounts/student/dashboard/';
+                } else if (result.user.role === 'professor') {
+                    // Professor dashboard (HTML template)
+                    window.location.href = '/api/accounts/professor/dashboard/';
                 } else {
-                    window.location.href = '/dashboard/';
+                    // Fallback: go back to login
+                    window.location.href = '/';
                 }
 
             } catch (err) {
