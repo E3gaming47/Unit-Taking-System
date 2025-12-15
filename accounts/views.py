@@ -157,7 +157,7 @@ class AuthViewSet(viewsets.ViewSet):
         refresh = RefreshToken.for_user(user)
 
         if user.role == "admin":
-            redirect_url = "/admin/departments/"
+            redirect_url = "/admin/dashboard/"
         elif user.role == "student":
             redirect_url = "/api/accounts/student/dashboard/"
         elif user.role == "professor":

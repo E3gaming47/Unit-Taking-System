@@ -15,8 +15,8 @@ function loginForm() {
 
                 // Redirect based on user role
                 if (result.user.role === 'admin') {
-                    // Admin panel dashboard (departments page as start)
-                    window.location.href = '/admin/departments/';
+                    // Admin panel dashboard
+                    window.location.href = '/admin/dashboard/';
                 } else if (result.user.role === 'student') {
                     // Student dashboard (HTML template)
                     window.location.href = '/api/accounts/student/dashboard/';
