@@ -16,7 +16,7 @@ function loginForm() {
                 // Redirect based on user role (prioritize role-based redirect)
                 if (result.user.role === 'admin') {
                     // Admin panel dashboard
-                    window.location.href = '/admin/dashboard/';
+                    window.location.href = '/api/accounts/admin/dashboard/';
                 } else if (result.user.role === 'student') {
                     // Student dashboard
                     window.location.href = '/api/accounts/student/dashboard/';
