@@ -33,8 +33,9 @@ urlpatterns = [
     path("admin/departments/", admin_departments, name="admin_departments"),
     path("admin/courses/", admin_courses, name="admin_courses"),
     path("admin/students/", admin_students, name="admin_students"),
-    path("admin/professors/", admin_professors, name="admin_professors"),
-    
+    path("admin/professors/", admin_professors, name="admin_professors"),\
+
+    path("api/offerings/", include("offerings.urls")),
     path("api/accounts/", include("accounts.urls")),
     path("api/departments/", include("departments.urls")),
     path("api/courses/", include("courses.urls")),
