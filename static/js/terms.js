@@ -1,0 +1,168 @@
+// Terms management component
+function termsManager() {
+    return {
+        terms: [],
+        loading: false,
+        error: '',
+        success: '',
+        showModal: false,
+        editingId: null,
+        form: {
+            name: '',
+            start_date: '',
+            end_date: '',
+            registration_start: '',
+            registration_end: '',
+            min_units: 0,
+            max_units: 20
+        },
+
+        async init() {
+            await this.loadTerms();
+        },
+
+        async loadTerms() {
+            this.loading = true;
+            this.error = '';
+            try {
+                this.terms = await API.getTerms();
+            } catch (err) {
+                this.error = err.message || 'خطا در بارگذاری ترم‌ها';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        openAddModal() {
+            this.editingId = null;
+            this.form = {
+                name: '',
+                start_date: '',
+                end_date: '',
+                registration_start: '',
+                registration_end: '',
+                min_units: 0,
+                max_units: 20
+            };
+            this.error = '';
+            this.success = '';
+            this.showModal = true;
+        },
+
+        openEditModal(term) {
+            this.editingId = term.id;
+            this.form = {
+                name: term.name,
+                start_date: term.start_date,
+                end_date: term.end_date,
+                registration_start: term.registration_start,
+                registration_end: term.registration_end,
+                min_units: term.min_units || 0,
+                max_units: term.max_units || 20
+            };
+            this.error = '';
+            this.success = '';
+            this.showModal = true;
+        },
+
+        closeModal() {
+            this.showModal = false;
+            this.editingId = null;
+            this.form = {
+                name: '',
+                start_date: '',
+                end_date: '',
+                registration_start: '',
+                registration_end: '',
+                min_units: 0,
+                max_units: 20
+            };
+            this.error = '';
+        },
+
+        async submitForm() {
+            this.error = '';
+            this.success = '';
+
+            if (!this.form.name || !this.form.start_date || !this.form.end_date || 
+                !this.form.registration_start || !this.form.registration_end ||
+                this.form.min_units === '' || this.form.max_units === '') {
+                this.error = 'لطفاً تمام فیلدهای الزامی را پر کنید';
+                return;
+            }
+
+            if (parseInt(this.form.min_units) > parseInt(this.form.max_units)) {
+                this.error = 'حداکثر واحد باید بیشتر یا مساوی حداقل واحد باشد';
+                return;
+            }
+
+            try {
+                const data = {
+                    name: this.form.name,
+                    start_date: this.form.start_date,
+                    end_date: this.form.end_date,
+                    registration_start: this.form.registration_start,
+                    registration_end: this.form.registration_end,
+                    min_units: parseInt(this.form.min_units) || 0,
+                    max_units: parseInt(this.form.max_units) || 20
+                };
+
+                if (this.editingId) {
+                    await API.updateTerm(this.editingId, data);
+                    this.success = 'ترم با موفقیت ویرایش شد';
+                } else {
+                    await API.createTerm(data);
+                    this.success = 'ترم با موفقیت اضافه شد';
+                }
+                
+                await this.loadTerms();
+                setTimeout(() => {
+                    this.closeModal();
+                }, 1000);
+            } catch (err) {
+                this.error = err.message || 'خطا در ذخیره ترم';
+            }
+        },
+
+        async deleteTerm(id, name) {
+            if (!confirm(`آیا از حذف ترم "${name}" اطمینان دارید؟`)) {
+                return;
+            }
+
+            try {
+                await API.deleteTerm(id);
+                this.success = 'ترم با موفقیت حذف شد';
+                await this.loadTerms();
+            } catch (err) {
+                this.error = err.message || 'خطا در حذف ترم';
+            }
+        },
+
+        async activateTerm(id) {
+            try {
+                await API.activateTerm(id);
+                this.success = 'ترم با موفقیت فعال شد';
+                await this.loadTerms();
+            } catch (err) {
+                this.error = err.message || 'خطا در فعال کردن ترم';
+            }
+        },
+
+        async deactivateTerm(id) {
+            try {
+                await API.deactivateTerm(id);
+                this.success = 'ترم با موفقیت غیرفعال شد';
+                await this.loadTerms();
+            } catch (err) {
+                this.error = err.message || 'خطا در غیرفعال کردن ترم';
+            }
+        },
+
+        formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('fa-IR');
+        }
+    }
+}
+

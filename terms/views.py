@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from accounts.permissions import IsAdmin
 from .models import Term
 from .serializers import TermSerializer
 
@@ -23,7 +24,7 @@ class TermViewSet(viewsets.ModelViewSet):
             "activate",
             "deactivate",
         ]:
-            return [permissions.IsAdminUser()]
+            return [IsAdmin()]
         return [permissions.AllowAny()]
 
     # -----------------------

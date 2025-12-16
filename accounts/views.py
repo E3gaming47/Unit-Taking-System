@@ -66,11 +66,28 @@ def admin_professors(request):
     """Render admin professors page"""
     return render(request, 'admin/professors.html')
 
+
+def admin_terms(request):
+    """Render admin terms page"""
+    return render(request, 'admin/terms.html')
+
+
+def admin_term_offerings(request):
+    """Render admin term offerings (sections) page"""
+    return render(request, 'admin/term-offerings.html')
+
 @login_required
 def student_dashboard(request):
     if request.user.role != "student":
         return HttpResponseForbidden()
     return render(request, 'students/dashboard.html')
+
+
+@login_required
+def student_offered_lessons(request):
+    if request.user.role != "student":
+        return HttpResponseForbidden()
+    return render(request, 'students/offered-lessons.html')
 
 
 
@@ -79,6 +96,13 @@ def professor_dashboard(request):
     if request.user.role != "professor":
         return HttpResponseForbidden()
     return render(request, 'professors/dashboard.html')
+
+
+@login_required
+def professor_lessons(request):
+    if request.user.role != "professor":
+        return HttpResponseForbidden()
+    return render(request, 'professors/lessons.html')
 
 
 class UserViewSet(viewsets.ModelViewSet):

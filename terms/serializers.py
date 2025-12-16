@@ -13,6 +13,8 @@ class TermSerializer(serializers.ModelSerializer):
             "registration_start",
             "registration_end",
             "is_active",
+            "min_units",
+            "max_units",
         ]
 
     def validate(self, data): #قبل از اینکه این JSON ذخیره شود، بررسی‌اش کن ببین منطقی هست یا نه
@@ -21,6 +23,8 @@ class TermSerializer(serializers.ModelSerializer):
         end_date = data.get("end_date")
         reg_start = data.get("registration_start")
         reg_end = data.get("registration_end")
+        min_units = data.get("min_units")
+        max_units = data.get("max_units")
 
         errors = {}
 
@@ -38,6 +42,10 @@ class TermSerializer(serializers.ModelSerializer):
 
         if start_date and reg_end and not (start_date <= reg_end <= end_date):
             errors["registration_end"] = "پایان انتخاب واحد باید داخل بازه ترم باشد."
+
+        # حداقل واحد باید کمتر یا مساوی حداکثر واحد باشد
+        if min_units is not None and max_units is not None and min_units > max_units:
+            errors["max_units"] = "حداکثر واحد باید بیشتر یا مساوی حداقل واحد باشد."
 
         if errors:
             raise serializers.ValidationError(errors)
