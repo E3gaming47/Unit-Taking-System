@@ -1,4 +1,4 @@
-{% extends "students/base.html" %}
+{% extends "admin/base.html" %}
 
 {% block title %}داشبورد - سیستم انتخاب واحد{% endblock %}
 
@@ -7,7 +7,7 @@
 {% block dashboard_active %}active{% endblock %}
 
 {% block content %}
-<div x-data="studentDashboardManager()" x-init="init()">
+<div x-data="dashboardManager()" x-init="init()">
     <!-- Alerts -->
     <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
     <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
@@ -18,38 +18,34 @@
         <p>در حال بارگذاری...</p>
     </div>
 
-    <!-- Student Info -->
-    <div x-show="!loading && studentInfo" class="table-container">
-        <h2 style="margin-bottom: 20px; color: var(--primary-color);">اطلاعات دانشجو</h2>
+    <!-- Admin Info -->
+    <div x-show="!loading && adminInfo" class="table-container">
+        <h2 style="margin-bottom: 20px; color: var(--primary-color);">اطلاعات مدیر</h2>
         <table>
             <tbody>
                 <tr>
                     <th style="width: 200px;">نام کاربری</th>
-                    <td x-text="studentInfo.username || '-'"></td>
-                </tr>
-                <tr>
-                    <th>شماره دانشجویی</th>
-                    <td x-text="studentInfo.student_id || '-'"></td>
+                    <td x-text="adminInfo.username || '-'"></td>
                 </tr>
                 <tr>
                     <th>ایمیل</th>
-                    <td x-text="studentInfo.email || '-'"></td>
+                    <td x-text="adminInfo.email || '-'"></td>
                 </tr>
                 <tr>
                     <th>نام</th>
-                    <td x-text="studentInfo.first_name || '-'"></td>
+                    <td x-text="adminInfo.first_name || '-'"></td>
                 </tr>
                 <tr>
                     <th>نام خانوادگی</th>
-                    <td x-text="studentInfo.last_name || '-'"></td>
+                    <td x-text="adminInfo.last_name || '-'"></td>
                 </tr>
                 <tr>
                     <th>نقش</th>
-                    <td x-text="studentInfo.role || '-'"></td>
+                    <td x-text="adminInfo.role || '-'"></td>
                 </tr>
                 <tr>
                     <th>شناسه کاربری</th>
-                    <td x-text="studentInfo.id || '-'"></td>
+                    <td x-text="adminInfo.id || '-'"></td>
                 </tr>
             </tbody>
         </table>
@@ -60,5 +56,6 @@
     [x-cloak] { display: none !important; }
 </style>
 
-<script src="/static/js/student-dashboard.js"></script>
+<script src="/static/js/dashboard.js"></script>
 {% endblock %}
+

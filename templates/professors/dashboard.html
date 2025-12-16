@@ -1,12 +1,64 @@
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>Professor Dashboard</title>
-</head>
-<body>
-    <h1>Professor Dashboard</h1>
-</body>
-</html>
+{% extends "professors/base.html" %}
 
+{% block title %}داشبورد - سیستم انتخاب واحد{% endblock %}
 
+{% block page_title %}داشبورد{% endblock %}
+
+{% block dashboard_active %}active{% endblock %}
+
+{% block content %}
+<div x-data="professorDashboardManager()" x-init="init()">
+    <!-- Alerts -->
+    <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
+    <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="loading">
+        <div class="spinner"></div>
+        <p>در حال بارگذاری...</p>
+    </div>
+
+    <!-- Professor Info -->
+    <div x-show="!loading && professorInfo" class="table-container">
+        <h2 style="margin-bottom: 20px; color: var(--primary-color);">اطلاعات استاد</h2>
+        <table>
+            <tbody>
+                <tr>
+                    <th style="width: 200px;">نام کاربری</th>
+                    <td x-text="professorInfo.username || '-'"></td>
+                </tr>
+                <tr>
+                    <th>شماره استادی</th>
+                    <td x-text="professorInfo.professor_id || '-'"></td>
+                </tr>
+                <tr>
+                    <th>ایمیل</th>
+                    <td x-text="professorInfo.email || '-'"></td>
+                </tr>
+                <tr>
+                    <th>نام</th>
+                    <td x-text="professorInfo.first_name || '-'"></td>
+                </tr>
+                <tr>
+                    <th>نام خانوادگی</th>
+                    <td x-text="professorInfo.last_name || '-'"></td>
+                </tr>
+                <tr>
+                    <th>نقش</th>
+                    <td x-text="professorInfo.role || '-'"></td>
+                </tr>
+                <tr>
+                    <th>شناسه کاربری</th>
+                    <td x-text="professorInfo.id || '-'"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+
+<script src="/static/js/professor-dashboard.js"></script>
+{% endblock %}

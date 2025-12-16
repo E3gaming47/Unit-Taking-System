@@ -88,7 +88,8 @@ const API = {
             return {
                 user: data.user,
                 accessToken: data.access,
-                refreshToken: data.refresh
+                refreshToken: data.refresh,
+                redirect_url: data.redirect_url
             };
         } catch (error) {
             throw error;
@@ -393,6 +394,180 @@ const API = {
      */
     async deleteUser(id) {
         const response = await fetch(`${this.baseURL}/accounts/users/${id}/`, {
+            method: 'DELETE',
+            headers: this.getAuthHeaders()
+        });
+        if (response.status === 204) {
+            return null;
+        }
+        return this.handleResponse(response);
+    },
+
+    // ========== TERMS API ==========
+
+    /**
+     * Get all terms (with pagination support)
+     * @param {Object} params - Query parameters (page, page_size, ordering)
+     */
+    async getTerms(params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.append('page', params.page);
+        if (params.page_size) queryParams.append('page_size', params.page_size);
+        if (params.ordering) queryParams.append('ordering', params.ordering);
+        
+        const url = `${this.baseURL}/terms/terms/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+        const data = await this.handleResponse(response);
+        
+        if (data.results) {
+            return data.results;
+        }
+        return data;
+    },
+
+    /**
+     * Get single term by ID
+     */
+    async getTerm(id) {
+        const response = await fetch(`${this.baseURL}/terms/terms/${id}/`, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Create new term
+     */
+    async createTerm(data) {
+        const response = await fetch(`${this.baseURL}/terms/terms/`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Update term
+     */
+    async updateTerm(id, data) {
+        const response = await fetch(`${this.baseURL}/terms/terms/${id}/`, {
+            method: 'PUT',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Delete term
+     */
+    async deleteTerm(id) {
+        const response = await fetch(`${this.baseURL}/terms/terms/${id}/`, {
+            method: 'DELETE',
+            headers: this.getAuthHeaders()
+        });
+        if (response.status === 204) {
+            return null;
+        }
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Activate term
+     */
+    async activateTerm(id) {
+        const response = await fetch(`${this.baseURL}/terms/terms/${id}/activate/`, {
+            method: 'POST',
+            headers: this.getAuthHeaders()
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Deactivate term
+     */
+    async deactivateTerm(id) {
+        const response = await fetch(`${this.baseURL}/terms/terms/${id}/deactivate/`, {
+            method: 'POST',
+            headers: this.getAuthHeaders()
+        });
+        return this.handleResponse(response);
+    },
+
+    // ========== SECTIONS API ==========
+
+    /**
+     * Get all sections (with pagination and filtering support)
+     * @param {Object} params - Query parameters (page, page_size, search, term, department, professor, ordering)
+     */
+    async getSections(params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.append('page', params.page);
+        if (params.page_size) queryParams.append('page_size', params.page_size);
+        if (params.search) queryParams.append('search', params.search);
+        if (params.term) queryParams.append('term', params.term);
+        if (params.department) queryParams.append('department', params.department);
+        if (params.professor) queryParams.append('professor', params.professor);
+        if (params.ordering) queryParams.append('ordering', params.ordering);
+        
+        const url = `${this.baseURL}/offerings/sections/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+        const data = await this.handleResponse(response);
+        
+        if (data.results) {
+            return data.results;
+        }
+        return data;
+    },
+
+    /**
+     * Get single section by ID
+     */
+    async getSection(id) {
+        const response = await fetch(`${this.baseURL}/offerings/sections/${id}/`, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Create new section
+     */
+    async createSection(data) {
+        const response = await fetch(`${this.baseURL}/offerings/sections/`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Update section
+     */
+    async updateSection(id, data) {
+        const response = await fetch(`${this.baseURL}/offerings/sections/${id}/`, {
+            method: 'PUT',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Delete section
+     */
+    async deleteSection(id) {
+        const response = await fetch(`${this.baseURL}/offerings/sections/${id}/`, {
             method: 'DELETE',
             headers: this.getAuthHeaders()
         });

@@ -8,8 +8,12 @@ from .views import (
     admin_courses,
     admin_students,
     admin_professors,
+    admin_terms,
+    admin_term_offerings,
     student_dashboard,
+    student_offered_lessons,
     professor_dashboard,
+    professor_lessons,
 )
 from .views import UserViewSet, AuthViewSet
 
@@ -18,19 +22,22 @@ router.register(r'users', UserViewSet, basename='user')
 router.register(r'auth', AuthViewSet, basename='auth')
 
 urlpatterns = [
-    path('', include(router.urls)),
-
+    # Specific routes first (before router)
+    path('student/dashboard/', student_dashboard, name='student-dashboard'),
+    path('student/offered-lessons/', student_offered_lessons, name='student-offered-lessons'),
+    path('professor/dashboard/', professor_dashboard, name='professor-dashboard'),
+    path('professor/lessons/', professor_lessons, name='professor-lessons'),
+    
     path('login-page/', login_page, name='login_page'),
-
-    path('/dashboard/', dashboard_redirect, name='dashboard-redirect'),
-
+    path('dashboard/', dashboard_redirect, name='dashboard-redirect'),
     path('admin/dashboard/', admin_dashboard, name='admin-dashboard'),
     path('admin/departments/', admin_departments, name='admin-departments'),
     path('admin/courses/', admin_courses, name='admin-courses'),
     path('admin/students/', admin_students, name='admin-students'),
     path('admin/professors/', admin_professors, name='admin-professors'),
+    path('admin/terms/', admin_terms, name='admin-terms'),
+    path('admin/term-offerings/', admin_term_offerings, name='admin-term-offerings'),
 
-    path('student/dashboard/', student_dashboard, name='student-dashboard'),
-
-    path('professor/dashboard/', professor_dashboard, name='professor-dashboard'),
+    # Router URLs last
+    path('', include(router.urls)),
 ]

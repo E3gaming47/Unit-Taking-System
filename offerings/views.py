@@ -1,3 +1,108 @@
-from django.shortcuts import render
+from rest_framework import filters, permissions, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
-# Create your views here.
+from accounts.permissions import IsAdmin
+from api.pagination import StandardResultsSetPagination
+from terms.models import Term
+from .models import Prerequisite, Section
+from .serializers import (
+    PrerequisiteSerializer,
+    SectionCreateSerializer,
+    SectionDetailSerializer,
+)
+from .services import prerequisites_valid
+
+
+class IsAdminOrReadOnly(permissions.BasePermission):
+
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return request.user and request.user.is_authenticated
+        return request.user and request.user.is_authenticated and request.user.role == "admin"
+
+
+class SectionViewSet(viewsets.ModelViewSet):
+
+    queryset = Section.objects.all().select_related("term", "course", "professor").prefetch_related(
+        "schedules"
+    )
+    pagination_class = StandardResultsSetPagination
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = [
+        "course__code",
+        "course__title",
+        "professor__username",
+        "professor__first_name",
+        "professor__last_name",
+        "term__name",
+    ]
+    ordering_fields = ["course__code", "course__title", "term__start_date", "section_number"]
+    ordering = ["course__code"]
+
+    def get_serializer_class(self):
+        if self.action in ["list", "retrieve"]:
+            return SectionDetailSerializer
+        return SectionCreateSerializer
+
+    def get_queryset(self):
+
+        qs = super().get_queryset()
+        request = self.request
+
+        term_id = request.query_params.get("term")
+        department_id = request.query_params.get("department")
+        professor_id = request.query_params.get("professor")
+
+      
+        if term_id:
+            qs = qs.filter(term_id=term_id)
+        else:
+            active_term = Term.objects.filter(is_active=True).first()
+            if active_term:
+                qs = qs.filter(term=active_term)
+
+        if department_id:
+            qs = qs.filter(course__departments__id=department_id)
+
+        if professor_id:
+            qs = qs.filter(professor_id=professor_id)
+
+        return qs.distinct()
+
+
+class PrerequisiteViewSet(viewsets.ModelViewSet):
+
+    queryset = Prerequisite.objects.all().select_related("course", "prerequisite_course")
+    serializer_class = PrerequisiteSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    pagination_class = StandardResultsSetPagination
+
+    @action(detail=False, methods=["post"], url_path="add_prerequisite")
+    def add_prerequisite(self, request):
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=201)
+
+    @action(detail=False, methods=["post"], url_path="remove_prerequisite")
+    def remove_prerequisite(self, request):
+
+        course_id = request.data.get("course")
+        prereq_id = request.data.get("prerequisite_course")
+
+        if not course_id or not prereq_id:
+            return Response(
+                {"detail": "course and prerequisite_course are required."},
+                status=400,
+            )
+
+        Prerequisite.objects.filter(
+            course_id=course_id,
+            prerequisite_course_id=prereq_id,
+        ).delete()
+
+        return Response(status=204)
+
