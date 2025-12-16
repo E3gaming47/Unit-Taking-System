@@ -55,10 +55,12 @@
                             <span x-show="!term.is_active" style="color: var(--gray-color);">غیرفعال</span>
                         </td>
                         <td>
-                            <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(term)">ویرایش</button>
-                            <button x-show="term.is_active" class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="deactivateTerm(term.id)">غیرفعال کردن</button>
-                            <button x-show="!term.is_active" class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="activateTerm(term.id)">فعال کردن</button>
-                            <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteTerm(term.id, term.name)" :disabled="term.is_active">حذف</button>
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                                <button class="btn btn-secondary" style="padding:6px 12px;" @click="openEditModal(term)">ویرایش</button>
+                                <button x-show="term.is_active" class="btn btn-secondary" style="padding:6px 12px;" @click="deactivateTerm(term.id)">غیرفعال کردن</button>
+                                <button x-show="!term.is_active" class="btn btn-secondary" style="padding:6px 12px;" @click="activateTerm(term.id)">فعال کردن</button>
+                                <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteTerm(term.id, term.name)" :disabled="term.is_active">حذف</button>
+                            </div>
                         </td>
                     </tr>
                 </template>

@@ -13,6 +13,7 @@ from .views import (
     student_dashboard,
     student_offered_lessons,
     professor_dashboard,
+    professor_lessons,
 )
 from .views import UserViewSet, AuthViewSet
 
@@ -25,6 +26,7 @@ urlpatterns = [
     path('student/dashboard/', student_dashboard, name='student-dashboard'),
     path('student/offered-lessons/', student_offered_lessons, name='student-offered-lessons'),
     path('professor/dashboard/', professor_dashboard, name='professor-dashboard'),
+    path('professor/lessons/', professor_lessons, name='professor-lessons'),
     
     path('login-page/', login_page, name='login_page'),
     path('dashboard/', dashboard_redirect, name='dashboard-redirect'),

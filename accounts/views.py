@@ -98,6 +98,13 @@ def professor_dashboard(request):
     return render(request, 'professors/dashboard.html')
 
 
+@login_required
+def professor_lessons(request):
+    if request.user.role != "professor":
+        return HttpResponseForbidden()
+    return render(request, 'professors/lessons.html')
+
+
 class UserViewSet(viewsets.ModelViewSet):
 
     queryset = User.objects.all()
