@@ -25,7 +25,9 @@ function termOfferingsManager() {
             course: '',
             professor: '',
             section_number: 1,
-            capacity: 1
+            capacity: 1,
+            schedules: [],
+            exam: null
         },
 
         async init() {
@@ -114,7 +116,9 @@ function termOfferingsManager() {
                 course: '',
                 professor: '',
                 section_number: 1,
-                capacity: 1
+                capacity: 1,
+                schedules: [],
+                exam: null
             };
             this.coursePrerequisites = [];
             this.showPrerequisitesSection = false;
@@ -127,6 +131,9 @@ function termOfferingsManager() {
         async openEditModal(section) {
             this.editingId = section.id;
             try {
+                // Get full section details including schedules and exam
+                const sectionDetails = await API.getSection(section.id);
+                
                 // SectionDetailSerializer returns term, course, professor as strings
                 // We need to find the IDs by matching with our dropdowns
                 const termId = this.terms.find(t => t.name === section.term)?.id || '';
@@ -136,12 +143,37 @@ function termOfferingsManager() {
                     return profName === section.professor || p.username === section.professor;
                 })?.id || '';
                 
+                // Format schedules for editing (ensure time format is HH:MM)
+                const formattedSchedules = (sectionDetails.schedules || []).map(s => ({
+                    day_of_week: s.day_of_week,
+                    start_time: s.start_time ? s.start_time.substring(0, 5) : '',
+                    end_time: s.end_time ? s.end_time.substring(0, 5) : '',
+                    location: s.location || ''
+                }));
+
+                // Format exam datetime for datetime-local input (YYYY-MM-DDTHH:MM)
+                let formattedExam = null;
+                if (sectionDetails.exam && sectionDetails.exam.exam_datetime) {
+                    const examDate = new Date(sectionDetails.exam.exam_datetime);
+                    const year = examDate.getFullYear();
+                    const month = String(examDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(examDate.getDate()).padStart(2, '0');
+                    const hours = String(examDate.getHours()).padStart(2, '0');
+                    const minutes = String(examDate.getMinutes()).padStart(2, '0');
+                    formattedExam = {
+                        exam_datetime: `${year}-${month}-${day}T${hours}:${minutes}`,
+                        location: sectionDetails.exam.location || ''
+                    };
+                }
+
                 this.form = {
                     term: termId,
                     course: courseId,
                     professor: professorId,
                     section_number: section.section_number || 1,
-                    capacity: section.capacity || 1
+                    capacity: section.capacity || 1,
+                    schedules: formattedSchedules,
+                    exam: formattedExam
                 };
                 
                 // Load prerequisites for this course
@@ -166,7 +198,9 @@ function termOfferingsManager() {
                 course: '',
                 professor: '',
                 section_number: 1,
-                capacity: 1
+                capacity: 1,
+                schedules: [],
+                exam: null
             };
             this.coursePrerequisites = [];
             this.showPrerequisitesSection = false;
@@ -285,6 +319,65 @@ function termOfferingsManager() {
             );
         },
 
+        getScheduleText(schedule) {
+            const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+            const dayName = days[schedule.day_of_week] || schedule.day_of_week;
+            const startTime = this.formatTime(schedule.start_time);
+            const endTime = this.formatTime(schedule.end_time);
+            let text = `${dayName}: ${startTime} - ${endTime}`;
+            if (schedule.location) {
+                text += ` (${schedule.location})`;
+            }
+            return text;
+        },
+
+        formatTime(timeString) {
+            if (!timeString) return '-';
+            // Handle both HH:MM:SS and HH:MM formats
+            const time = timeString.length > 5 ? timeString.substring(0, 5) : timeString;
+            return time;
+        },
+
+        formatDateTime(dateTimeString) {
+            if (!dateTimeString) return '-';
+            const date = new Date(dateTimeString);
+            return date.toLocaleString('fa-IR', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        },
+
+        // Schedule management
+        addSchedule() {
+            this.form.schedules.push({
+                day_of_week: 0,
+                start_time: '',
+                end_time: '',
+                location: ''
+            });
+        },
+
+        removeSchedule(index) {
+            this.form.schedules.splice(index, 1);
+        },
+
+        // Exam management
+        setExam() {
+            if (!this.form.exam) {
+                this.form.exam = {
+                    exam_datetime: '',
+                    location: ''
+                };
+            }
+        },
+
+        removeExam() {
+            this.form.exam = null;
+        },
+
         async submitForm() {
             this.error = '';
             this.success = '';
@@ -295,13 +388,42 @@ function termOfferingsManager() {
                 return;
             }
 
+            // Validate schedules
+            for (let i = 0; i < this.form.schedules.length; i++) {
+                const schedule = this.form.schedules[i];
+                if (!schedule.day_of_week || !schedule.start_time || !schedule.end_time) {
+                    this.error = `لطفاً تمام فیلدهای برنامه کلاسی شماره ${i + 1} را پر کنید`;
+                    return;
+                }
+                if (schedule.start_time >= schedule.end_time) {
+                    this.error = `زمان شروع باید قبل از زمان پایان باشد (برنامه کلاسی شماره ${i + 1})`;
+                    return;
+                }
+            }
+
+            // Validate exam if provided
+            if (this.form.exam && !this.form.exam.exam_datetime) {
+                this.error = 'لطفاً تاریخ و زمان امتحان را وارد کنید';
+                return;
+            }
+
             try {
                 const data = {
                     term: parseInt(this.form.term),
                     course: parseInt(this.form.course),
                     professor: parseInt(this.form.professor),
                     section_number: parseInt(this.form.section_number),
-                    capacity: parseInt(this.form.capacity)
+                    capacity: parseInt(this.form.capacity),
+                    schedules: this.form.schedules.map(s => ({
+                        day_of_week: parseInt(s.day_of_week),
+                        start_time: s.start_time + (s.start_time.length === 5 ? ':00' : ''),
+                        end_time: s.end_time + (s.end_time.length === 5 ? ':00' : ''),
+                        location: s.location || ''
+                    })),
+                    exam: this.form.exam ? {
+                        exam_datetime: new Date(this.form.exam.exam_datetime).toISOString(),
+                        location: this.form.exam.location || ''
+                    } : undefined
                 };
 
                 if (this.editingId) {
