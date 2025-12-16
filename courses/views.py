@@ -1,4 +1,4 @@
-from rest_framework import filters, viewsets
+from rest_framework import filters, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,10 +9,21 @@ from .models import Course
 from .serializers import CourseSerializer
 
 
+class IsAdminOrReadOnly(permissions.BasePermission):
+    """
+    Allows read access to all authenticated users,
+    but write access only to admins.
+    """
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return request.user and request.user.is_authenticated
+        return request.user and request.user.is_authenticated and request.user.role == "admin"
+
+
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all().prefetch_related("departments")
     serializer_class = CourseSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAdminOrReadOnly]
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["code", "title", "departments__name", "departments__code"]

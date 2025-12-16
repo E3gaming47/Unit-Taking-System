@@ -46,10 +46,16 @@ const API = {
             }
             
             // Handle authentication errors
-            if (response.status === 401 || response.status === 403) {
+            if (response.status === 401) {
+                // Only redirect on 401 (unauthorized), not 403 (forbidden)
                 this.clearAuth();
                 window.location.href = '/';
                 throw new Error('دسترسی غیرمجاز. لطفاً دوباره وارد شوید.');
+            }
+            
+            // Handle permission errors (403) - don't logout, just show error
+            if (response.status === 403) {
+                throw new Error('شما دسترسی لازم برای این عملیات را ندارید.');
             }
             
             const error = data.detail || data.message || data.username || data.password || 'خطا در ارتباط با سرور';
@@ -568,6 +574,108 @@ const API = {
      */
     async deleteSection(id) {
         const response = await fetch(`${this.baseURL}/offerings/sections/${id}/`, {
+            method: 'DELETE',
+            headers: this.getAuthHeaders()
+        });
+        if (response.status === 204) {
+            return null;
+        }
+        return this.handleResponse(response);
+    },
+
+    // ========== PREREQUISITES API ==========
+
+    /**
+     * Get all prerequisites (with pagination support)
+     * @param {Object} params - Query parameters (page, page_size, course, ordering)
+     */
+    async getPrerequisites(params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.append('page', params.page);
+        if (params.page_size) queryParams.append('page_size', params.page_size);
+        if (params.course) queryParams.append('course', params.course);
+        if (params.ordering) queryParams.append('ordering', params.ordering);
+        
+        const url = `${this.baseURL}/offerings/prerequisites/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+        const data = await this.handleResponse(response);
+        
+        if (data.results) {
+            return data.results;
+        }
+        return data;
+    },
+
+    /**
+     * Get single prerequisite by ID
+     */
+    async getPrerequisite(id) {
+        const response = await fetch(`${this.baseURL}/offerings/prerequisites/${id}/`, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Create new prerequisite
+     */
+    async createPrerequisite(data) {
+        const response = await fetch(`${this.baseURL}/offerings/prerequisites/`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Add prerequisite using custom action
+     */
+    async addPrerequisite(data) {
+        const response = await fetch(`${this.baseURL}/offerings/prerequisites/add_prerequisite/`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Remove prerequisite using custom action
+     */
+    async removePrerequisite(data) {
+        const response = await fetch(`${this.baseURL}/offerings/prerequisites/remove_prerequisite/`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        if (response.status === 204) {
+            return null;
+        }
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Update prerequisite
+     */
+    async updatePrerequisite(id, data) {
+        const response = await fetch(`${this.baseURL}/offerings/prerequisites/${id}/`, {
+            method: 'PUT',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Delete prerequisite
+     */
+    async deletePrerequisite(id) {
+        const response = await fetch(`${this.baseURL}/offerings/prerequisites/${id}/`, {
             method: 'DELETE',
             headers: this.getAuthHeaders()
         });

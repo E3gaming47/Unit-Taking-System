@@ -15,6 +15,11 @@ function termOfferingsManager() {
         searchText: '',
         selectedTerm: '',
         selectedDepartment: '',
+        // Prerequisites management
+        coursePrerequisites: [],
+        showPrerequisitesSection: false,
+        newPrerequisiteCourse: '',
+        loadingPrerequisites: false,
         form: {
             term: '',
             course: '',
@@ -111,6 +116,9 @@ function termOfferingsManager() {
                 section_number: 1,
                 capacity: 1
             };
+            this.coursePrerequisites = [];
+            this.showPrerequisitesSection = false;
+            this.newPrerequisiteCourse = '';
             this.error = '';
             this.success = '';
             this.showModal = true;
@@ -135,6 +143,12 @@ function termOfferingsManager() {
                     section_number: section.section_number || 1,
                     capacity: section.capacity || 1
                 };
+                
+                // Load prerequisites for this course
+                if (courseId) {
+                    await this.loadCoursePrerequisites(courseId);
+                    this.showPrerequisitesSection = true;
+                }
             } catch (err) {
                 this.error = 'خطا در بارگذاری اطلاعات ارائه';
                 return;
@@ -154,7 +168,121 @@ function termOfferingsManager() {
                 section_number: 1,
                 capacity: 1
             };
+            this.coursePrerequisites = [];
+            this.showPrerequisitesSection = false;
+            this.newPrerequisiteCourse = '';
             this.error = '';
+        },
+
+        // Prerequisites management
+        async loadCoursePrerequisites(courseId) {
+            if (!courseId) return;
+            
+            this.loadingPrerequisites = true;
+            try {
+                const prerequisites = await API.getPrerequisites({ course: courseId });
+                this.coursePrerequisites = prerequisites || [];
+            } catch (err) {
+                console.error('Error loading prerequisites:', err);
+                this.coursePrerequisites = [];
+            } finally {
+                this.loadingPrerequisites = false;
+            }
+        },
+
+        async onCourseChange() {
+            if (this.form.course) {
+                await this.loadCoursePrerequisites(this.form.course);
+                this.showPrerequisitesSection = true;
+            } else {
+                this.coursePrerequisites = [];
+                this.showPrerequisitesSection = false;
+            }
+        },
+
+        async addPrerequisite() {
+            if (!this.form.course || !this.newPrerequisiteCourse) {
+                this.error = 'لطفاً درس و پیش‌نیاز را انتخاب کنید';
+                return;
+            }
+
+            if (this.form.course === this.newPrerequisiteCourse) {
+                this.error = 'یک درس نمی‌تواند پیش‌نیاز خودش باشد';
+                return;
+            }
+
+            // Check if prerequisite already exists
+            const exists = this.coursePrerequisites.some(
+                p => p.prerequisite_course === parseInt(this.newPrerequisiteCourse) || 
+                     (typeof p.prerequisite_course === 'object' && p.prerequisite_course.id === parseInt(this.newPrerequisiteCourse))
+            );
+            
+            if (exists) {
+                this.error = 'این پیش‌نیاز قبلاً اضافه شده است';
+                return;
+            }
+
+            try {
+                const data = {
+                    course: parseInt(this.form.course),
+                    prerequisite_course: parseInt(this.newPrerequisiteCourse)
+                };
+                
+                await API.addPrerequisite(data);
+                this.success = 'پیش‌نیاز با موفقیت اضافه شد';
+                await this.loadCoursePrerequisites(this.form.course);
+                this.newPrerequisiteCourse = '';
+            } catch (err) {
+                this.error = err.message || 'خطا در اضافه کردن پیش‌نیاز';
+            }
+        },
+
+        async removePrerequisite(prerequisiteId, prerequisiteCourseId) {
+            if (!confirm('آیا از حذف این پیش‌نیاز اطمینان دارید؟')) {
+                return;
+            }
+
+            try {
+                const prereqId = typeof prerequisiteCourseId === 'object' 
+                    ? prerequisiteCourseId.id 
+                    : prerequisiteCourseId;
+                
+                const data = {
+                    course: parseInt(this.form.course),
+                    prerequisite_course: parseInt(prereqId)
+                };
+                
+                await API.removePrerequisite(data);
+                this.success = 'پیش‌نیاز با موفقیت حذف شد';
+                await this.loadCoursePrerequisites(this.form.course);
+            } catch (err) {
+                this.error = err.message || 'خطا در حذف پیش‌نیاز';
+            }
+        },
+
+        getPrerequisiteCourseName(prerequisite) {
+            const prereqId = typeof prerequisite.prerequisite_course === 'object' 
+                ? prerequisite.prerequisite_course.id 
+                : parseInt(prerequisite.prerequisite_course);
+            
+            const course = this.courses.find(c => c.id === prereqId);
+            return course ? `${course.code} - ${course.title}` : 'نامشخص';
+        },
+
+        getAvailablePrerequisiteCourses() {
+            if (!this.form.course) return this.courses;
+            
+            const currentCourseId = parseInt(this.form.course);
+            const existingPrereqIds = this.coursePrerequisites.map(p => {
+                const prereqId = typeof p.prerequisite_course === 'object' 
+                    ? p.prerequisite_course.id 
+                    : parseInt(p.prerequisite_course);
+                return prereqId;
+            });
+            
+            return this.courses.filter(c => 
+                c.id !== currentCourseId && !existingPrereqIds.includes(c.id)
+            );
         },
 
         async submitForm() {
