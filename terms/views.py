@@ -27,6 +27,21 @@ class TermViewSet(viewsets.ModelViewSet):
             return [IsAdmin()]
         return [permissions.AllowAny()]
 
+    def get_queryset(self):
+        """
+        Filter queryset based on user role:
+        - Admins: see all terms
+        - Students/Professors: only see active terms
+        """
+        qs = super().get_queryset()
+        user = self.request.user
+        
+        # For non-admin users, only show active terms
+        if user.is_authenticated and user.role != "admin":
+            qs = qs.filter(is_active=True)
+        
+        return qs
+
     # -----------------------
     # اکشن فعال‌سازی ترم
     # POST /terms/{id}/activate/

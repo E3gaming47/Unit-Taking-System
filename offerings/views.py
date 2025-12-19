@@ -50,18 +50,39 @@ class SectionViewSet(viewsets.ModelViewSet):
 
         qs = super().get_queryset()
         request = self.request
+        user = request.user
 
         term_id = request.query_params.get("term")
         department_id = request.query_params.get("department")
         professor_id = request.query_params.get("professor")
 
-      
-        if term_id:
-            qs = qs.filter(term_id=term_id)
+        # For non-admin users (students and professors), only show sections from active terms
+        if user.is_authenticated and user.role != "admin":
+            active_terms = Term.objects.filter(is_active=True)
+            if not active_terms.exists():
+                # No active term, return empty queryset for students/professors
+                return qs.none()
+            
+            # If term_id is provided, verify it's an active term
+            if term_id:
+                try:
+                    term = Term.objects.get(id=term_id, is_active=True)
+                    qs = qs.filter(term=term)
+                except Term.DoesNotExist:
+                    # Requested term is not active, return empty queryset
+                    return qs.none()
+            else:
+                # No term_id specified, filter by all active terms
+                qs = qs.filter(term__in=active_terms)
         else:
-            active_term = Term.objects.filter(is_active=True).first()
-            if active_term:
-                qs = qs.filter(term=active_term)
+            # Admin users can see all sections
+            if term_id:
+                qs = qs.filter(term_id=term_id)
+            else:
+                # For admin, if no term specified, default to active term
+                active_term = Term.objects.filter(is_active=True).first()
+                if active_term:
+                    qs = qs.filter(term=active_term)
 
         if department_id:
             qs = qs.filter(course__departments__id=department_id)
