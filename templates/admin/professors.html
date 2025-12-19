@@ -122,8 +122,17 @@
                     <input type="email" x-model="form.email">
                 </div>
                 <div class="form-group">
-                    <label>رمز عبور <span x-show="editingId">(اختیاری - در صورت خالی بودن تغییر نمی‌کند)</span><span x-show="!editingId">*</span></label>
-                    <input type="password" x-model="form.password" :required="!editingId">
+                    <label>رمز عبور <span x-show="editingId">(اختیاری - برای تغییر رمز عبور وارد کنید، در غیر این صورت خالی بگذارید)</span><span x-show="!editingId">*</span></label>
+                    <input 
+                        type="password" 
+                        x-model="form.password" 
+                        :required="!editingId"
+                        :placeholder="editingId ? 'رمز عبور فعلی نمایش داده نمی‌شود - برای تغییر وارد کنید' : 'رمز عبور را وارد کنید'"
+                        autocomplete="new-password"
+                    >
+                    <small x-show="editingId" style="color: var(--gray-color); font-size: 12px; display: block; margin-top: 5px;">
+                        برای امنیت، رمز عبور فعلی نمایش داده نمی‌شود. برای تغییر رمز عبور، رمز جدید را وارد کنید.
+                    </small>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @click="closeModal()">انصراف</button>

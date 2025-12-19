@@ -25,7 +25,9 @@ function termOfferingsManager() {
             course: '',
             professor: '',
             section_number: 1,
-            capacity: 1
+            capacity: 1,
+            schedules: [],
+            exam: null
         },
 
         async init() {
@@ -114,7 +116,9 @@ function termOfferingsManager() {
                 course: '',
                 professor: '',
                 section_number: 1,
-                capacity: 1
+                capacity: 1,
+                schedules: [],
+                exam: null
             };
             // Clear prerequisites when adding new section
             this.coursePrerequisites = [];
@@ -138,19 +142,52 @@ function termOfferingsManager() {
                     return profName === section.professor || p.username === section.professor;
                 })?.id || '';
                 
+                // Load schedules and exam from section data
+                const schedules = section.schedules || [];
+                const exam = section.exam || null;
+                
+                // Convert exam datetime to datetime-local format
+                let examDatetime = null;
+                if (exam && exam.exam_datetime) {
+                    try {
+                        // Convert ISO datetime to datetime-local format (YYYY-MM-DDTHH:mm)
+                        const date = new Date(exam.exam_datetime);
+                        if (!isNaN(date.getTime())) {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            examDatetime = `${year}-${month}-${day}T${hours}:${minutes}`;
+                        }
+                    } catch (err) {
+                        console.error('Error converting exam datetime:', err);
+                    }
+                }
+                
                 this.form = {
                     term: termId,
                     course: courseId,
                     professor: professorId,
                     section_number: section.section_number || 1,
-                    capacity: section.capacity || 1
+                    capacity: section.capacity || 1,
+                    schedules: (schedules || []).map(s => ({
+                        day_of_week: s.day_of_week || 0,
+                        start_time: s.start_time || '',
+                        end_time: s.end_time || '',
+                        location: s.location || ''
+                    })),
+                    exam: exam ? {
+                        exam_datetime: examDatetime,
+                        location: exam.location || ''
+                    } : null
                 };
                 
-                // Load prerequisites for this course
-                if (courseId) {
+                // Load prerequisites for this section (prerequisites are now section-specific)
+                if (this.editingId) {
                     this.showPrerequisitesSection = true;
                     this.newPrerequisiteCourse = '';
-                    await this.loadCoursePrerequisites(parseInt(courseId));
+                    await this.loadSectionPrerequisites(this.editingId);
                 } else {
                     this.coursePrerequisites = [];
                     this.showPrerequisitesSection = false;
@@ -173,7 +210,9 @@ function termOfferingsManager() {
                 course: '',
                 professor: '',
                 section_number: 1,
-                capacity: 1
+                capacity: 1,
+                schedules: [],
+                exam: null
             };
             this.coursePrerequisites = [];
             this.showPrerequisitesSection = false;
@@ -181,9 +220,9 @@ function termOfferingsManager() {
             this.error = '';
         },
 
-        // Prerequisites management
-        async loadCoursePrerequisites(courseId) {
-            if (!courseId) {
+        // Prerequisites management - now section-specific
+        async loadSectionPrerequisites(sectionId) {
+            if (!sectionId) {
                 // Force reactivity by creating new array
                 this.coursePrerequisites = [];
                 return;
@@ -192,7 +231,7 @@ function termOfferingsManager() {
             this.loadingPrerequisites = true;
             this.error = '';
             try {
-                const prerequisites = await API.getPrerequisites({ course: courseId });
+                const prerequisites = await API.getPrerequisites({ section: sectionId });
                 // Force reactivity by creating new array reference
                 this.coursePrerequisites = Array.isArray(prerequisites) ? [...prerequisites] : [];
             } catch (err) {
@@ -206,16 +245,15 @@ function termOfferingsManager() {
         },
 
         async onCourseChange() {
-            if (this.form.course) {
-                // Always show prerequisites section when course is selected
-                // Prerequisites are course-level, so they apply to all sections of that course
+            // Prerequisites are now section-specific, so we only show them when editing an existing section
+            if (this.editingId) {
+                // Reload prerequisites for this section
                 this.showPrerequisitesSection = true;
                 this.newPrerequisiteCourse = '';
-                // Clear first to ensure reactivity
                 this.coursePrerequisites = [];
-                await this.loadCoursePrerequisites(parseInt(this.form.course));
+                await this.loadSectionPrerequisites(this.editingId);
             } else {
-                // Force reactivity by creating new array
+                // When adding new section, prerequisites can only be managed after section is created
                 this.coursePrerequisites = [];
                 this.showPrerequisitesSection = false;
                 this.newPrerequisiteCourse = '';
@@ -223,18 +261,18 @@ function termOfferingsManager() {
         },
 
         async addPrerequisite() {
-            if (!this.form.course || !this.newPrerequisiteCourse) {
-                this.error = 'لطفاً درس و پیش‌نیاز را انتخاب کنید';
+            if (!this.editingId) {
+                this.error = 'لطفاً ابتدا بخش را ذخیره کنید، سپس پیش‌نیازها را اضافه کنید';
                 return;
             }
 
-            const courseId = parseInt(this.form.course);
+            if (!this.newPrerequisiteCourse) {
+                this.error = 'لطفاً پیش‌نیاز را انتخاب کنید';
+                return;
+            }
+
+            const sectionId = parseInt(this.editingId);
             const prereqId = parseInt(this.newPrerequisiteCourse);
-
-            if (courseId === prereqId) {
-                this.error = 'یک درس نمی‌تواند پیش‌نیاز خودش باشد';
-                return;
-            }
 
             // Check if prerequisite already exists
             const exists = this.coursePrerequisites.some(p => {
@@ -249,7 +287,7 @@ function termOfferingsManager() {
 
             try {
                 const data = {
-                    course: courseId,
+                    section: sectionId,
                     prerequisite_course: prereqId
                 };
                 
@@ -257,7 +295,7 @@ function termOfferingsManager() {
                 this.success = 'پیش‌نیاز با موفقیت اضافه شد';
                 this.error = '';
                 this.newPrerequisiteCourse = '';
-                await this.loadCoursePrerequisites(courseId);
+                await this.loadSectionPrerequisites(sectionId);
                 // Clear success message after 3 seconds
                 setTimeout(() => {
                     this.success = '';
@@ -273,8 +311,8 @@ function termOfferingsManager() {
                 return;
             }
 
-            if (!this.form.course) {
-                this.error = 'خطا: درس انتخاب نشده است';
+            if (!this.editingId) {
+                this.error = 'خطا: بخش انتخاب نشده است';
                 return;
             }
 
@@ -286,18 +324,18 @@ function termOfferingsManager() {
             }
 
             try {
-                const courseId = parseInt(this.form.course);
+                const sectionId = parseInt(this.editingId);
                 const prereqCourseId = parseInt(prerequisiteCourseId);
                 
                 // Validate parsed values
-                if (isNaN(courseId) || isNaN(prereqCourseId) || courseId <= 0 || prereqCourseId <= 0) {
+                if (isNaN(sectionId) || isNaN(prereqCourseId) || sectionId <= 0 || prereqCourseId <= 0) {
                     this.error = 'خطا: شناسه‌های نامعتبر';
-                    console.error('Invalid IDs - courseId:', courseId, 'prereqCourseId:', prereqCourseId);
+                    console.error('Invalid IDs - sectionId:', sectionId, 'prereqCourseId:', prereqCourseId);
                     return;
                 }
                 
                 const data = {
-                    course: courseId,
+                    section: sectionId,
                     prerequisite_course: prereqCourseId
                 };
                 
@@ -313,7 +351,7 @@ function termOfferingsManager() {
                 this.coursePrerequisites = [];
                 
                 // Reload prerequisites to update the list
-                await this.loadCoursePrerequisites(courseId);
+                await this.loadSectionPrerequisites(sectionId);
                 
                 // Clear success message after 3 seconds
                 setTimeout(() => {
@@ -324,7 +362,7 @@ function termOfferingsManager() {
                 console.error('Error details:', {
                     message: err.message,
                     stack: err.stack,
-                    formCourse: this.form.course,
+                    editingId: this.editingId,
                     prerequisiteCourseId: prerequisiteCourseId
                 });
                 this.error = err.message || 'خطا در حذف پیش‌نیاز. لطفاً دوباره تلاش کنید.';
@@ -351,6 +389,99 @@ function termOfferingsManager() {
             );
         },
 
+        // Schedule management
+        addSchedule() {
+            this.form.schedules.push({
+                day_of_week: 0,
+                start_time: '',
+                end_time: '',
+                location: ''
+            });
+        },
+
+        removeSchedule(index) {
+            this.form.schedules.splice(index, 1);
+        },
+
+        getDayName(dayOfWeek) {
+            const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+            return days[dayOfWeek] || 'نامشخص';
+        },
+
+        formatTime(time) {
+            if (!time) return '';
+            try {
+                // Handle both "HH:MM:SS" and "HH:MM" formats
+                const parts = String(time).split(':');
+                if (parts.length < 2) return String(time);
+                return `${parts[0]}:${parts[1]}`;
+            } catch (err) {
+                console.error('Error formatting time:', err);
+                return String(time);
+            }
+        },
+
+        getScheduleText(schedule) {
+            if (!schedule) return 'نامشخص';
+            try {
+                const day = this.getDayName(schedule.day_of_week);
+                const start = this.formatTime(schedule.start_time);
+                const end = this.formatTime(schedule.end_time);
+                const location = schedule.location ? ` - ${schedule.location}` : '';
+                return `${day} ${start}-${end}${location}`;
+            } catch (err) {
+                console.error('Error formatting schedule:', err);
+                return 'خطا در نمایش';
+            }
+        },
+
+        // Exam management
+        setExam() {
+            if (!this.form.exam) {
+                this.form.exam = {
+                    exam_datetime: '',
+                    location: ''
+                };
+            }
+        },
+
+        removeExam() {
+            this.form.exam = null;
+        },
+
+        formatDateTime(datetime) {
+            if (!datetime) return '';
+            try {
+                // Handle ISO datetime string
+                const date = new Date(datetime);
+                if (isNaN(date.getTime())) {
+                    // Invalid date
+                    return String(datetime);
+                }
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${year}-${month}-${day} ${hours}:${minutes}`;
+            } catch (err) {
+                console.error('Error formatting datetime:', err);
+                return String(datetime);
+            }
+        },
+
+        getExamText(exam) {
+            if (!exam) return 'تعریف نشده';
+            try {
+                const datetime = this.formatDateTime(exam.exam_datetime);
+                const location = exam.location ? ` - ${exam.location}` : '';
+                return `${datetime}${location}`;
+            } catch (err) {
+                console.error('Error formatting exam:', err);
+                return 'خطا در نمایش';
+            }
+        },
+
         async submitForm() {
             this.error = '';
             this.success = '';
@@ -362,26 +493,71 @@ function termOfferingsManager() {
             }
 
             try {
+                // Prepare schedules - ensure array exists
+                const schedules = (this.form.schedules || []).map(s => ({
+                    day_of_week: parseInt(s.day_of_week) || 0,
+                    start_time: s.start_time || '',
+                    end_time: s.end_time || '',
+                    location: s.location || ''
+                }));
+
+                // Prepare exam - convert datetime-local to ISO format
+                let exam = null;
+                if (this.form.exam && this.form.exam.exam_datetime) {
+                    try {
+                        // Convert datetime-local format to ISO string
+                        const datetimeStr = String(this.form.exam.exam_datetime);
+                        // datetime-local format is "YYYY-MM-DDTHH:mm", need to add seconds
+                        const isoDatetime = datetimeStr.includes('T') 
+                            ? `${datetimeStr}:00` 
+                            : datetimeStr;
+                        exam = {
+                            exam_datetime: isoDatetime,
+                            location: this.form.exam.location || ''
+                        };
+                    } catch (err) {
+                        console.error('Error preparing exam data:', err);
+                        exam = null;
+                    }
+                }
+
                 const data = {
                     term: parseInt(this.form.term),
                     course: parseInt(this.form.course),
                     professor: parseInt(this.form.professor),
                     section_number: parseInt(this.form.section_number),
-                    capacity: parseInt(this.form.capacity)
+                    capacity: parseInt(this.form.capacity),
+                    schedules: schedules,
+                    exam: exam
                 };
 
+                let sectionId = this.editingId;
+                let isNewSection = false;
+                
                 if (this.editingId) {
                     await API.updateSection(this.editingId, data);
                     this.success = 'ارائه با موفقیت ویرایش شد';
+                    // Reload prerequisites after update
+                    await this.loadSectionPrerequisites(this.editingId);
                 } else {
-                    await API.createSection(data);
-                    this.success = 'ارائه با موفقیت اضافه شد';
+                    const newSection = await API.createSection(data);
+                    sectionId = newSection.id;
+                    this.editingId = sectionId; // Set editingId so prerequisites can be managed
+                    isNewSection = true;
+                    this.success = 'ارائه با موفقیت اضافه شد. اکنون می‌توانید پیش‌نیازها را مدیریت کنید.';
+                    // Load prerequisites for the newly created section
+                    this.showPrerequisitesSection = true;
+                    await this.loadSectionPrerequisites(sectionId);
                 }
                 
                 await this.loadSections();
-                setTimeout(() => {
-                    this.closeModal();
-                }, 1000);
+                
+                // Only close modal if editing existing section (not when adding new, so user can manage prerequisites)
+                if (!isNewSection) {
+                    setTimeout(() => {
+                        this.closeModal();
+                    }, 1000);
+                }
             } catch (err) {
                 this.error = err.message || 'خطا در ذخیره ارائه';
             }

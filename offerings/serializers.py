@@ -135,21 +135,31 @@ class SectionDetailSerializer(serializers.ModelSerializer):
 
 
 class PrerequisiteSerializer(serializers.ModelSerializer):
-    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
+    section = serializers.PrimaryKeyRelatedField(queryset=Section.objects.all(), required=True)
     prerequisite_course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
+    # Include course_id for convenience (derived from section)
+    course_id = serializers.IntegerField(source='section.course.id', read_only=True)
 
     class Meta:
         model = Prerequisite
-        fields = ["id", "course", "prerequisite_course"]
-        read_only_fields = ["id"]
+        fields = ["id", "section", "prerequisite_course", "course_id"]
+        read_only_fields = ["id", "course_id"]
 
     def validate(self, attrs):
-        course = attrs.get("course")
+        section = attrs.get("section")
         prereq = attrs.get("prerequisite_course")
 
-        if course == prereq:
+        if not section:
+            raise serializers.ValidationError({"section": "Section is required."})
+        
+        if not prereq:
+            raise serializers.ValidationError({"prerequisite_course": "Prerequisite course is required."})
+
+        # Check if prerequisite course is the same as section's course
+        if section.course_id == prereq.id:
             raise serializers.ValidationError("A course cannot be a prerequisite of itself.")
 
-        prerequisites_valid(course, [prereq])
+        # Validate prerequisites (using section's course)
+        prerequisites_valid(section.course, [prereq])
         return attrs
 

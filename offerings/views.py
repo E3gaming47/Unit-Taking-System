@@ -74,10 +74,23 @@ class SectionViewSet(viewsets.ModelViewSet):
 
 class PrerequisiteViewSet(viewsets.ModelViewSet):
 
-    queryset = Prerequisite.objects.all().select_related("course", "prerequisite_course")
+    queryset = Prerequisite.objects.all().select_related("section", "section__course", "prerequisite_course")
     serializer_class = PrerequisiteSerializer
     permission_classes = [IsAdminOrReadOnly]
     pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        section_id = self.request.query_params.get("section")
+        course_id = self.request.query_params.get("course")  # For backward compatibility, filter by section's course
+        
+        if section_id:
+            qs = qs.filter(section_id=section_id)
+        elif course_id:
+            # Filter by section's course (for backward compatibility)
+            qs = qs.filter(section__course_id=course_id)
+        
+        return qs
 
     @action(detail=False, methods=["post"], url_path="add_prerequisite")
     def add_prerequisite(self, request):
@@ -90,17 +103,17 @@ class PrerequisiteViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"], url_path="remove_prerequisite")
     def remove_prerequisite(self, request):
 
-        course_id = request.data.get("course")
+        section_id = request.data.get("section")
         prereq_id = request.data.get("prerequisite_course")
 
-        if not course_id or not prereq_id:
+        if not section_id or not prereq_id:
             return Response(
-                {"detail": "course and prerequisite_course are required."},
+                {"detail": "section and prerequisite_course are required."},
                 status=400,
             )
 
         Prerequisite.objects.filter(
-            course_id=course_id,
+            section_id=section_id,
             prerequisite_course_id=prereq_id,
         ).delete()
 

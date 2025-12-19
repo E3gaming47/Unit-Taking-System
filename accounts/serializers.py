@@ -15,6 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'username': {'required': True},
             'email': {'required': False},
+            'password': {'write_only': True}  # Explicitly ensure password is never returned
         }
 
     def validate_username(self, value):
