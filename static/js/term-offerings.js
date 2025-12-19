@@ -25,9 +25,7 @@ function termOfferingsManager() {
             course: '',
             professor: '',
             section_number: 1,
-            capacity: 1,
-            schedules: [],
-            exam: null
+            capacity: 1
         },
 
         async init() {
@@ -116,10 +114,9 @@ function termOfferingsManager() {
                 course: '',
                 professor: '',
                 section_number: 1,
-                capacity: 1,
-                schedules: [],
-                exam: null
+                capacity: 1
             };
+            // Clear prerequisites when adding new section
             this.coursePrerequisites = [];
             this.showPrerequisitesSection = false;
             this.newPrerequisiteCourse = '';
@@ -131,57 +128,35 @@ function termOfferingsManager() {
         async openEditModal(section) {
             this.editingId = section.id;
             try {
-                // Get full section details including schedules and exam
-                const sectionDetails = await API.getSection(section.id);
-                
                 // SectionDetailSerializer returns term, course, professor as strings
-                // We need to find the IDs by matching with our dropdowns
+                // But also includes course_id field
                 const termId = this.terms.find(t => t.name === section.term)?.id || '';
-                const courseId = this.courses.find(c => `${c.code} - ${c.title}` === section.course)?.id || '';
+                // Use course_id if available, otherwise try to match by string
+                const courseId = section.course_id || this.courses.find(c => `${c.code} - ${c.title}` === section.course)?.id || '';
                 const professorId = this.professors.find(p => {
                     const profName = p.username + (p.first_name ? ` (${p.first_name} ${p.last_name || ''})` : '');
                     return profName === section.professor || p.username === section.professor;
                 })?.id || '';
                 
-                // Format schedules for editing (ensure time format is HH:MM)
-                const formattedSchedules = (sectionDetails.schedules || []).map(s => ({
-                    day_of_week: s.day_of_week,
-                    start_time: s.start_time ? s.start_time.substring(0, 5) : '',
-                    end_time: s.end_time ? s.end_time.substring(0, 5) : '',
-                    location: s.location || ''
-                }));
-
-                // Format exam datetime for datetime-local input (YYYY-MM-DDTHH:MM)
-                let formattedExam = null;
-                if (sectionDetails.exam && sectionDetails.exam.exam_datetime) {
-                    const examDate = new Date(sectionDetails.exam.exam_datetime);
-                    const year = examDate.getFullYear();
-                    const month = String(examDate.getMonth() + 1).padStart(2, '0');
-                    const day = String(examDate.getDate()).padStart(2, '0');
-                    const hours = String(examDate.getHours()).padStart(2, '0');
-                    const minutes = String(examDate.getMinutes()).padStart(2, '0');
-                    formattedExam = {
-                        exam_datetime: `${year}-${month}-${day}T${hours}:${minutes}`,
-                        location: sectionDetails.exam.location || ''
-                    };
-                }
-
                 this.form = {
                     term: termId,
                     course: courseId,
                     professor: professorId,
                     section_number: section.section_number || 1,
-                    capacity: section.capacity || 1,
-                    schedules: formattedSchedules,
-                    exam: formattedExam
+                    capacity: section.capacity || 1
                 };
                 
                 // Load prerequisites for this course
                 if (courseId) {
-                    await this.loadCoursePrerequisites(courseId);
                     this.showPrerequisitesSection = true;
+                    this.newPrerequisiteCourse = '';
+                    await this.loadCoursePrerequisites(parseInt(courseId));
+                } else {
+                    this.coursePrerequisites = [];
+                    this.showPrerequisitesSection = false;
                 }
             } catch (err) {
+                console.error('Error opening edit modal:', err);
                 this.error = 'خطا در بارگذاری اطلاعات ارائه';
                 return;
             }
@@ -198,9 +173,7 @@ function termOfferingsManager() {
                 course: '',
                 professor: '',
                 section_number: 1,
-                capacity: 1,
-                schedules: [],
-                exam: null
+                capacity: 1
             };
             this.coursePrerequisites = [];
             this.showPrerequisitesSection = false;
@@ -210,15 +183,23 @@ function termOfferingsManager() {
 
         // Prerequisites management
         async loadCoursePrerequisites(courseId) {
-            if (!courseId) return;
+            if (!courseId) {
+                // Force reactivity by creating new array
+                this.coursePrerequisites = [];
+                return;
+            }
             
             this.loadingPrerequisites = true;
+            this.error = '';
             try {
                 const prerequisites = await API.getPrerequisites({ course: courseId });
-                this.coursePrerequisites = prerequisites || [];
+                // Force reactivity by creating new array reference
+                this.coursePrerequisites = Array.isArray(prerequisites) ? [...prerequisites] : [];
             } catch (err) {
                 console.error('Error loading prerequisites:', err);
+                // Force reactivity by creating new array
                 this.coursePrerequisites = [];
+                // Don't show error for loading prerequisites, just log it
             } finally {
                 this.loadingPrerequisites = false;
             }
@@ -226,11 +207,18 @@ function termOfferingsManager() {
 
         async onCourseChange() {
             if (this.form.course) {
-                await this.loadCoursePrerequisites(this.form.course);
+                // Always show prerequisites section when course is selected
+                // Prerequisites are course-level, so they apply to all sections of that course
                 this.showPrerequisitesSection = true;
+                this.newPrerequisiteCourse = '';
+                // Clear first to ensure reactivity
+                this.coursePrerequisites = [];
+                await this.loadCoursePrerequisites(parseInt(this.form.course));
             } else {
+                // Force reactivity by creating new array
                 this.coursePrerequisites = [];
                 this.showPrerequisitesSection = false;
+                this.newPrerequisiteCourse = '';
             }
         },
 
@@ -240,16 +228,19 @@ function termOfferingsManager() {
                 return;
             }
 
-            if (this.form.course === this.newPrerequisiteCourse) {
+            const courseId = parseInt(this.form.course);
+            const prereqId = parseInt(this.newPrerequisiteCourse);
+
+            if (courseId === prereqId) {
                 this.error = 'یک درس نمی‌تواند پیش‌نیاز خودش باشد';
                 return;
             }
 
             // Check if prerequisite already exists
-            const exists = this.coursePrerequisites.some(
-                p => p.prerequisite_course === parseInt(this.newPrerequisiteCourse) || 
-                     (typeof p.prerequisite_course === 'object' && p.prerequisite_course.id === parseInt(this.newPrerequisiteCourse))
-            );
+            const exists = this.coursePrerequisites.some(p => {
+                const existingPrereqId = parseInt(p.prerequisite_course);
+                return existingPrereqId === prereqId;
+            });
             
             if (exists) {
                 this.error = 'این پیش‌نیاز قبلاً اضافه شده است';
@@ -258,16 +249,22 @@ function termOfferingsManager() {
 
             try {
                 const data = {
-                    course: parseInt(this.form.course),
-                    prerequisite_course: parseInt(this.newPrerequisiteCourse)
+                    course: courseId,
+                    prerequisite_course: prereqId
                 };
                 
                 await API.addPrerequisite(data);
                 this.success = 'پیش‌نیاز با موفقیت اضافه شد';
-                await this.loadCoursePrerequisites(this.form.course);
+                this.error = '';
                 this.newPrerequisiteCourse = '';
+                await this.loadCoursePrerequisites(courseId);
+                // Clear success message after 3 seconds
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
             } catch (err) {
                 this.error = err.message || 'خطا در اضافه کردن پیش‌نیاز';
+                this.success = '';
             }
         },
 
@@ -276,106 +273,82 @@ function termOfferingsManager() {
                 return;
             }
 
+            if (!this.form.course) {
+                this.error = 'خطا: درس انتخاب نشده است';
+                return;
+            }
+
+            // Validate inputs
+            if (prerequisiteCourseId === null || prerequisiteCourseId === undefined || prerequisiteCourseId === '') {
+                this.error = 'خطا: اطلاعات پیش‌نیاز نامعتبر است';
+                console.error('Invalid prerequisiteCourseId:', prerequisiteCourseId);
+                return;
+            }
+
             try {
-                const prereqId = typeof prerequisiteCourseId === 'object' 
-                    ? prerequisiteCourseId.id 
-                    : prerequisiteCourseId;
+                const courseId = parseInt(this.form.course);
+                const prereqCourseId = parseInt(prerequisiteCourseId);
+                
+                // Validate parsed values
+                if (isNaN(courseId) || isNaN(prereqCourseId) || courseId <= 0 || prereqCourseId <= 0) {
+                    this.error = 'خطا: شناسه‌های نامعتبر';
+                    console.error('Invalid IDs - courseId:', courseId, 'prereqCourseId:', prereqCourseId);
+                    return;
+                }
                 
                 const data = {
-                    course: parseInt(this.form.course),
-                    prerequisite_course: parseInt(prereqId)
+                    course: courseId,
+                    prerequisite_course: prereqCourseId
                 };
                 
-                await API.removePrerequisite(data);
+                console.log('Removing prerequisite with data:', data);
+                
+                const result = await API.removePrerequisite(data);
+                console.log('Remove prerequisite result:', result);
+                
                 this.success = 'پیش‌نیاز با موفقیت حذف شد';
-                await this.loadCoursePrerequisites(this.form.course);
+                this.error = '';
+                
+                // Force clear the array first to ensure reactivity
+                this.coursePrerequisites = [];
+                
+                // Reload prerequisites to update the list
+                await this.loadCoursePrerequisites(courseId);
+                
+                // Clear success message after 3 seconds
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
             } catch (err) {
-                this.error = err.message || 'خطا در حذف پیش‌نیاز';
+                console.error('Error removing prerequisite:', err);
+                console.error('Error details:', {
+                    message: err.message,
+                    stack: err.stack,
+                    formCourse: this.form.course,
+                    prerequisiteCourseId: prerequisiteCourseId
+                });
+                this.error = err.message || 'خطا در حذف پیش‌نیاز. لطفاً دوباره تلاش کنید.';
+                this.success = '';
             }
         },
 
         getPrerequisiteCourseName(prerequisite) {
-            const prereqId = typeof prerequisite.prerequisite_course === 'object' 
-                ? prerequisite.prerequisite_course.id 
-                : parseInt(prerequisite.prerequisite_course);
-            
+            const prereqId = parseInt(prerequisite.prerequisite_course);
             const course = this.courses.find(c => c.id === prereqId);
-            return course ? `${course.code} - ${course.title}` : 'نامشخص';
+            return course ? `${course.code} - ${course.title}` : `درس #${prereqId}`;
         },
 
         getAvailablePrerequisiteCourses() {
             if (!this.form.course) return this.courses;
             
             const currentCourseId = parseInt(this.form.course);
-            const existingPrereqIds = this.coursePrerequisites.map(p => {
-                const prereqId = typeof p.prerequisite_course === 'object' 
-                    ? p.prerequisite_course.id 
-                    : parseInt(p.prerequisite_course);
-                return prereqId;
-            });
+            const existingPrereqIds = this.coursePrerequisites.map(p => 
+                parseInt(p.prerequisite_course)
+            );
             
             return this.courses.filter(c => 
                 c.id !== currentCourseId && !existingPrereqIds.includes(c.id)
             );
-        },
-
-        getScheduleText(schedule) {
-            const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
-            const dayName = days[schedule.day_of_week] || schedule.day_of_week;
-            const startTime = this.formatTime(schedule.start_time);
-            const endTime = this.formatTime(schedule.end_time);
-            let text = `${dayName}: ${startTime} - ${endTime}`;
-            if (schedule.location) {
-                text += ` (${schedule.location})`;
-            }
-            return text;
-        },
-
-        formatTime(timeString) {
-            if (!timeString) return '-';
-            // Handle both HH:MM:SS and HH:MM formats
-            const time = timeString.length > 5 ? timeString.substring(0, 5) : timeString;
-            return time;
-        },
-
-        formatDateTime(dateTimeString) {
-            if (!dateTimeString) return '-';
-            const date = new Date(dateTimeString);
-            return date.toLocaleString('fa-IR', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        },
-
-        // Schedule management
-        addSchedule() {
-            this.form.schedules.push({
-                day_of_week: 0,
-                start_time: '',
-                end_time: '',
-                location: ''
-            });
-        },
-
-        removeSchedule(index) {
-            this.form.schedules.splice(index, 1);
-        },
-
-        // Exam management
-        setExam() {
-            if (!this.form.exam) {
-                this.form.exam = {
-                    exam_datetime: '',
-                    location: ''
-                };
-            }
-        },
-
-        removeExam() {
-            this.form.exam = null;
         },
 
         async submitForm() {
@@ -388,42 +361,13 @@ function termOfferingsManager() {
                 return;
             }
 
-            // Validate schedules
-            for (let i = 0; i < this.form.schedules.length; i++) {
-                const schedule = this.form.schedules[i];
-                if (!schedule.day_of_week || !schedule.start_time || !schedule.end_time) {
-                    this.error = `لطفاً تمام فیلدهای برنامه کلاسی شماره ${i + 1} را پر کنید`;
-                    return;
-                }
-                if (schedule.start_time >= schedule.end_time) {
-                    this.error = `زمان شروع باید قبل از زمان پایان باشد (برنامه کلاسی شماره ${i + 1})`;
-                    return;
-                }
-            }
-
-            // Validate exam if provided
-            if (this.form.exam && !this.form.exam.exam_datetime) {
-                this.error = 'لطفاً تاریخ و زمان امتحان را وارد کنید';
-                return;
-            }
-
             try {
                 const data = {
                     term: parseInt(this.form.term),
                     course: parseInt(this.form.course),
                     professor: parseInt(this.form.professor),
                     section_number: parseInt(this.form.section_number),
-                    capacity: parseInt(this.form.capacity),
-                    schedules: this.form.schedules.map(s => ({
-                        day_of_week: parseInt(s.day_of_week),
-                        start_time: s.start_time + (s.start_time.length === 5 ? ':00' : ''),
-                        end_time: s.end_time + (s.end_time.length === 5 ? ':00' : ''),
-                        location: s.location || ''
-                    })),
-                    exam: this.form.exam ? {
-                        exam_datetime: new Date(this.form.exam.exam_datetime).toISOString(),
-                        location: this.form.exam.location || ''
-                    } : undefined
+                    capacity: parseInt(this.form.capacity)
                 };
 
                 if (this.editingId) {

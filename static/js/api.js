@@ -653,9 +653,13 @@ const API = {
             headers: this.getAuthHeaders(),
             body: JSON.stringify(data)
         });
+        
+        // 204 No Content means success
         if (response.status === 204) {
             return null;
         }
+        
+        // For any other status, handle as error
         return this.handleResponse(response);
     },
 

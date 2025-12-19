@@ -91,8 +91,6 @@
                     <th>استاد</th>
                     <th>شماره بخش</th>
                     <th>ظرفیت</th>
-                    <th>برنامه کلاسی</th>
-                    <th>امتحان</th>
                     <th>عملیات</th>
                 </tr>
             </thead>
@@ -105,32 +103,13 @@
                         <td x-text="section.section_number"></td>
                         <td x-text="section.capacity"></td>
                         <td>
-                            <template x-if="section.schedules && section.schedules.length > 0">
-                                <div style="font-size: 12px;">
-                                    <template x-for="schedule in section.schedules" :key="schedule.id">
-                                        <div x-text="getScheduleText(schedule)"></div>
-                                    </template>
-                                </div>
-                            </template>
-                            <span x-show="!section.schedules || section.schedules.length === 0" style="color: var(--gray-color);">-</span>
-                        </td>
-                        <td>
-                            <template x-if="section.exam">
-                                <div style="font-size: 12px;">
-                                    <div x-text="formatDateTime(section.exam.exam_datetime)"></div>
-                                    <div x-show="section.exam.location" x-text="'مکان: ' + section.exam.location" style="color: var(--gray-color);"></div>
-                                </div>
-                            </template>
-                            <span x-show="!section.exam" style="color: var(--gray-color);">-</span>
-                        </td>
-                        <td>
                             <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(section)">ویرایش</button>
                             <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteSection(section.id, section.course)">حذف</button>
                         </td>
                     </tr>
                 </template>
                 <tr x-show="sections.length === 0">
-                    <td colspan="8" style="text-align: center; padding: 40px; color: var(--gray-color);">
+                    <td colspan="6" style="text-align: center; padding: 40px; color: var(--gray-color);">
                         ارائه‌ای وجود ندارد
                     </td>
                 </tr>
@@ -186,94 +165,12 @@
                     <input type="number" x-model="form.capacity" min="1" required>
                 </div>
 
-                <!-- Schedules Section -->
-                <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid var(--light-gray);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3 style="color: var(--primary-color); margin: 0;">برنامه کلاسی</h3>
-                        <button type="button" class="btn btn-secondary" @click="addSchedule()" style="padding: 6px 12px; font-size: 14px;">
-                            افزودن برنامه
-                        </button>
-                    </div>
-                    
-                    <div x-show="form.schedules.length === 0" style="text-align: center; padding: 20px; color: var(--gray-color);">
-                        برنامه کلاسی اضافه نشده است
-                    </div>
-                    
-                    <template x-for="(schedule, index) in form.schedules" :key="index">
-                        <div style="background: rgba(255, 255, 255, 0.2); padding: 15px; border-radius: var(--border-radius); margin-bottom: 15px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                <strong style="color: var(--dark-gray);">برنامه کلاسی شماره <span x-text="index + 1"></span></strong>
-                                <button type="button" class="btn btn-danger" @click="removeSchedule(index)" style="padding: 4px 12px; font-size: 12px;">
-                                    حذف
-                                </button>
-                            </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label>روز هفته *</label>
-                                    <select x-model="schedule.day_of_week" required>
-                                        <option value="0">شنبه</option>
-                                        <option value="1">یکشنبه</option>
-                                        <option value="2">دوشنبه</option>
-                                        <option value="3">سه‌شنبه</option>
-                                        <option value="4">چهارشنبه</option>
-                                        <option value="5">پنج‌شنبه</option>
-                                        <option value="6">جمعه</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label>ساعت شروع *</label>
-                                    <input type="time" x-model="schedule.start_time" required>
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label>ساعت پایان *</label>
-                                    <input type="time" x-model="schedule.end_time" required>
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label>مکان (اختیاری)</label>
-                                    <input type="text" x-model="schedule.location" placeholder="مثال: کلاس 101">
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-
-                <!-- Exam Section -->
-                <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid var(--light-gray);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3 style="color: var(--primary-color); margin: 0;">اطلاعات امتحان</h3>
-                        <template x-if="!form.exam">
-                            <button type="button" class="btn btn-secondary" @click="setExam()" style="padding: 6px 12px; font-size: 14px;">
-                                افزودن امتحان
-                            </button>
-                        </template>
-                        <template x-if="form.exam">
-                            <button type="button" class="btn btn-danger" @click="removeExam()" style="padding: 6px 12px; font-size: 14px;">
-                                حذف امتحان
-                            </button>
-                        </template>
-                    </div>
-                    
-                    <div x-show="!form.exam" style="text-align: center; padding: 20px; color: var(--gray-color);">
-                        اطلاعات امتحان اضافه نشده است
-                    </div>
-                    
-                    <div x-show="form.exam" style="background: rgba(255, 255, 255, 0.2); padding: 15px; border-radius: var(--border-radius);">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label>تاریخ و زمان امتحان *</label>
-                                <input type="datetime-local" x-model="form.exam.exam_datetime" required>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label>مکان امتحان (اختیاری)</label>
-                                <input type="text" x-model="form.exam.location" placeholder="مثال: سالن امتحانات">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Prerequisites Section -->
                 <div x-show="showPrerequisitesSection" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid var(--light-gray);">
                     <h3 style="color: var(--primary-color); margin-bottom: 15px;">مدیریت پیش‌نیازهای درس</h3>
+                    <p style="color: var(--gray-color); font-size: 13px; margin-bottom: 15px;">
+                        توجه: پیش‌نیازها در سطح درس تعریف می‌شوند و برای تمام بخش‌های این درس اعمال می‌شوند.
+                    </p>
                     
                     <!-- Add Prerequisite -->
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-bottom: 20px;">
@@ -300,26 +197,30 @@
                     </div>
                     
                     <div x-show="!loadingPrerequisites">
-                        <div x-show="coursePrerequisites.length === 0" style="text-align: center; padding: 20px; color: var(--gray-color);">
-                            پیش‌نیازی برای این درس تعریف نشده است
-                        </div>
+                        <template x-if="coursePrerequisites.length === 0">
+                            <div style="text-align: center; padding: 20px; color: var(--gray-color);">
+                                پیش‌نیازی برای این درس تعریف نشده است
+                            </div>
+                        </template>
                         
-                        <div x-show="coursePrerequisites.length > 0" style="background: rgba(255, 255, 255, 0.2); padding: 15px; border-radius: var(--border-radius);">
-                            <div style="font-weight: 600; margin-bottom: 10px; color: var(--dark-gray);">پیش‌نیازهای فعلی:</div>
-                            <template x-for="prereq in coursePrerequisites" :key="prereq.id">
-                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.3); border-radius: 6px;">
-                                    <span x-text="getPrerequisiteCourseName(prereq)"></span>
-                                    <button 
-                                        type="button" 
-                                        class="btn btn-danger" 
-                                        style="padding: 4px 12px; font-size: 12px;"
-                                        @click="removePrerequisite(prereq.id, prereq.prerequisite_course)"
-                                    >
-                                        حذف
-                                    </button>
-                                </div>
-                            </template>
-                        </div>
+                        <template x-if="coursePrerequisites.length > 0">
+                            <div style="background: rgba(255, 255, 255, 0.2); padding: 15px; border-radius: var(--border-radius);">
+                                <div style="font-weight: 600; margin-bottom: 10px; color: var(--dark-gray);">پیش‌نیازهای فعلی:</div>
+                                <template x-for="prereq in coursePrerequisites" :key="prereq.id">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.3); border-radius: 6px;">
+                                        <span x-text="getPrerequisiteCourseName(prereq)"></span>
+                                        <button 
+                                            type="button" 
+                                            class="btn btn-danger" 
+                                            style="padding: 4px 12px; font-size: 12px;"
+                                            @click="removePrerequisite(prereq.id, prereq.prerequisite_course)"
+                                        >
+                                            حذف
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
                     </div>
                 </div>
 
