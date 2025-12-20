@@ -139,22 +139,36 @@ function termsManager() {
         },
 
         async activateTerm(id) {
+            this.error = '';
+            this.success = '';
             try {
                 await API.activateTerm(id);
                 this.success = 'ترم با موفقیت فعال شد';
+                this.error = '';
                 await this.loadTerms();
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
             } catch (err) {
                 this.error = err.message || 'خطا در فعال کردن ترم';
+                this.success = '';
             }
         },
 
         async deactivateTerm(id) {
+            this.error = '';
+            this.success = '';
             try {
                 await API.deactivateTerm(id);
                 this.success = 'ترم با موفقیت غیرفعال شد';
+                this.error = '';
                 await this.loadTerms();
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
             } catch (err) {
                 this.error = err.message || 'خطا در غیرفعال کردن ترم';
+                this.success = '';
             }
         },
 

@@ -25,6 +25,7 @@ class TermSerializer(serializers.ModelSerializer):
         reg_end = data.get("registration_end")
         min_units = data.get("min_units")
         max_units = data.get("max_units")
+        is_active = data.get("is_active")
 
         errors = {}
 
@@ -46,6 +47,20 @@ class TermSerializer(serializers.ModelSerializer):
         # حداقل واحد باید کمتر یا مساوی حداکثر واحد باشد
         if min_units is not None and max_units is not None and min_units > max_units:
             errors["max_units"] = "حداکثر واحد باید بیشتر یا مساوی حداقل واحد باشد."
+
+        # بررسی اینکه فقط یک ترم می‌تواند فعال باشد
+        if is_active:
+            # اگر is_active در data نیست، از instance استفاده می‌کنیم
+            instance = self.instance
+            active_terms = Term.objects.filter(is_active=True)
+            
+            # اگر در حال ویرایش هستیم، خود ترم فعلی را از لیست حذف می‌کنیم
+            if instance and instance.pk:
+                active_terms = active_terms.exclude(pk=instance.pk)
+            
+            # اگر ترم فعال دیگری وجود دارد
+            if active_terms.exists():
+                errors["is_active"] = "فقط یک ترم می‌تواند فعال باشد. لطفاً ابتدا ترم فعال فعلی را غیرفعال کنید."
 
         if errors:
             raise serializers.ValidationError(errors)
