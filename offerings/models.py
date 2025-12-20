@@ -88,21 +88,10 @@ class SectionExam(models.Model):
 
 
 class Prerequisite(models.Model):
-    section = models.ForeignKey(
-        Section,
-        on_delete=models.CASCADE,
-        related_name="prerequisites",
-        null=True,  # Temporarily nullable for migration
-        blank=True,
-    )
-    
-    # Keep course field temporarily for migration compatibility
     course = models.ForeignKey(
         "courses.Course",
         on_delete=models.CASCADE,
-        related_name="prerequisites_old",
-        null=True,
-        blank=True,
+        related_name="prerequisites",
     )
 
     prerequisite_course = models.ForeignKey(
@@ -112,11 +101,16 @@ class Prerequisite(models.Model):
     )
 
     class Meta:
-        unique_together = ("section", "prerequisite_course")
+        unique_together = ("course", "prerequisite_course")
 
     def clean(self):
-        # Check if prerequisite course is the same as section's course
-        if self.section and self.prerequisite_course:
-            if self.section.course_id == self.prerequisite_course_id:
+        # Check if prerequisite course is the same as course
+        if self.course and self.prerequisite_course:
+            if self.course_id == self.prerequisite_course_id:
                 raise ValidationError("A course cannot be a prerequisite of itself.")
+
+    def save(self, *args, **kwargs):
+        # Ensure clean() is called before saving
+        self.full_clean()
+        return super().save(*args, **kwargs)
 

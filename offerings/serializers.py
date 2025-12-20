@@ -135,31 +135,30 @@ class SectionDetailSerializer(serializers.ModelSerializer):
 
 
 class PrerequisiteSerializer(serializers.ModelSerializer):
-    section = serializers.PrimaryKeyRelatedField(queryset=Section.objects.all(), required=True)
-    prerequisite_course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
-    # Include course_id for convenience (derived from section)
-    course_id = serializers.IntegerField(source='section.course.id', read_only=True)
+    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all(), required=True)
+    prerequisite_course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all(), required=True)
 
     class Meta:
         model = Prerequisite
-        fields = ["id", "section", "prerequisite_course", "course_id"]
-        read_only_fields = ["id", "course_id"]
+        fields = ["id", "course", "prerequisite_course"]
+        read_only_fields = ["id"]
 
     def validate(self, attrs):
-        section = attrs.get("section")
+        course = attrs.get("course")
         prereq = attrs.get("prerequisite_course")
 
-        if not section:
-            raise serializers.ValidationError({"section": "Section is required."})
+        if not course:
+            raise serializers.ValidationError({"course": "Course is required."})
         
         if not prereq:
             raise serializers.ValidationError({"prerequisite_course": "Prerequisite course is required."})
 
-        # Check if prerequisite course is the same as section's course
-        if section.course_id == prereq.id:
+        # Check if prerequisite course is the same as course
+        if course.id == prereq.id:
             raise serializers.ValidationError("A course cannot be a prerequisite of itself.")
 
-        # Validate prerequisites (using section's course)
-        prerequisites_valid(section.course, [prereq])
+        # Validate prerequisites (exclude current instance if updating)
+        exclude_id = self.instance.id if self.instance else None
+        prerequisites_valid(course, [prereq], exclude_prerequisite_id=exclude_id)
         return attrs
 
