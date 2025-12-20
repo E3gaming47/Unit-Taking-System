@@ -587,14 +587,13 @@ const API = {
 
     /**
      * Get all prerequisites (with pagination support)
-     * @param {Object} params - Query parameters (page, page_size, section, course, ordering)
+     * @param {Object} params - Query parameters (page, page_size, course, ordering)
      */
     async getPrerequisites(params = {}) {
         const queryParams = new URLSearchParams();
         if (params.page) queryParams.append('page', params.page);
         if (params.page_size) queryParams.append('page_size', params.page_size);
-        if (params.section) queryParams.append('section', params.section);
-        if (params.course) queryParams.append('course', params.course); // For backward compatibility
+        if (params.course) queryParams.append('course', params.course);
         if (params.ordering) queryParams.append('ordering', params.ordering);
         
         const url = `${this.baseURL}/offerings/prerequisites/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;

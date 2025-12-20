@@ -271,65 +271,6 @@
                     </template>
                 </div>
 
-                <!-- Prerequisites Section -->
-                <div x-show="showPrerequisitesSection" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid var(--light-gray);">
-                    <h3 style="color: var(--primary-color); margin-bottom: 15px;">مدیریت پیش‌نیازهای این بخش</h3>
-                    <p style="color: var(--gray-color); font-size: 13px; margin-bottom: 15px;">
-                        توجه: پیش‌نیازها برای این بخش خاص تعریف می‌شوند و مستقل از سایر بخش‌های همان درس هستند.
-                    </p>
-                    
-                    <!-- Add Prerequisite -->
-                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-bottom: 20px;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label>افزودن پیش‌نیاز</label>
-                            <select x-model="newPrerequisiteCourse">
-                                <option value="">انتخاب درس به عنوان پیش‌نیاز</option>
-                                <template x-for="course in getAvailablePrerequisiteCourses()" :key="course.id">
-                                    <option :value="course.id" x-text="course.code + ' - ' + course.title"></option>
-                                </template>
-                            </select>
-                        </div>
-                        <div style="display: flex; align-items: end;">
-                            <button type="button" class="btn btn-primary" @click="addPrerequisite()" style="white-space: nowrap;">
-                                افزودن پیش‌نیاز
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Prerequisites List -->
-                    <div x-show="loadingPrerequisites" style="text-align: center; padding: 20px;">
-                        <div class="spinner" style="margin: 0 auto;"></div>
-                        <p>در حال بارگذاری...</p>
-                    </div>
-                    
-                    <div x-show="!loadingPrerequisites">
-                        <template x-if="coursePrerequisites.length === 0">
-                            <div style="text-align: center; padding: 20px; color: var(--gray-color);">
-                                پیش‌نیازی برای این درس تعریف نشده است
-                            </div>
-                        </template>
-                        
-                        <template x-if="coursePrerequisites.length > 0">
-                            <div style="background: rgba(255, 255, 255, 0.2); padding: 15px; border-radius: var(--border-radius);">
-                                <div style="font-weight: 600; margin-bottom: 10px; color: var(--dark-gray);">پیش‌نیازهای فعلی:</div>
-                                <template x-for="prereq in coursePrerequisites" :key="prereq.id">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.3); border-radius: 6px;">
-                                        <span x-text="getPrerequisiteCourseName(prereq)"></span>
-                                        <button 
-                                            type="button" 
-                                            class="btn btn-danger" 
-                                            style="padding: 4px 12px; font-size: 12px;"
-                                            @click="removePrerequisite(prereq.id, prereq.prerequisite_course)"
-                                        >
-                                            حذف
-                                        </button>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @click="closeModal()">انصراف</button>
                     <button type="submit" class="btn btn-primary">ذخیره</button>

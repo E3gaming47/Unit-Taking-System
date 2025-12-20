@@ -15,11 +15,6 @@ function termOfferingsManager() {
         searchText: '',
         selectedTerm: '',
         selectedDepartment: '',
-        // Prerequisites management
-        coursePrerequisites: [],
-        showPrerequisitesSection: false,
-        newPrerequisiteCourse: '',
-        loadingPrerequisites: false,
         form: {
             term: '',
             course: '',
@@ -120,10 +115,6 @@ function termOfferingsManager() {
                 schedules: [],
                 exam: null
             };
-            // Clear prerequisites when adding new section
-            this.coursePrerequisites = [];
-            this.showPrerequisitesSection = false;
-            this.newPrerequisiteCourse = '';
             this.error = '';
             this.success = '';
             this.showModal = true;
@@ -182,16 +173,6 @@ function termOfferingsManager() {
                         location: exam.location || ''
                     } : null
                 };
-                
-                // Load prerequisites for this section (prerequisites are now section-specific)
-                if (this.editingId) {
-                    this.showPrerequisitesSection = true;
-                    this.newPrerequisiteCourse = '';
-                    await this.loadSectionPrerequisites(this.editingId);
-                } else {
-                    this.coursePrerequisites = [];
-                    this.showPrerequisitesSection = false;
-                }
             } catch (err) {
                 console.error('Error opening edit modal:', err);
                 this.error = 'خطا در بارگذاری اطلاعات ارائه';
@@ -214,179 +195,7 @@ function termOfferingsManager() {
                 schedules: [],
                 exam: null
             };
-            this.coursePrerequisites = [];
-            this.showPrerequisitesSection = false;
-            this.newPrerequisiteCourse = '';
             this.error = '';
-        },
-
-        // Prerequisites management - now section-specific
-        async loadSectionPrerequisites(sectionId) {
-            if (!sectionId) {
-                // Force reactivity by creating new array
-                this.coursePrerequisites = [];
-                return;
-            }
-            
-            this.loadingPrerequisites = true;
-            this.error = '';
-            try {
-                const prerequisites = await API.getPrerequisites({ section: sectionId });
-                // Force reactivity by creating new array reference
-                this.coursePrerequisites = Array.isArray(prerequisites) ? [...prerequisites] : [];
-            } catch (err) {
-                console.error('Error loading prerequisites:', err);
-                // Force reactivity by creating new array
-                this.coursePrerequisites = [];
-                // Don't show error for loading prerequisites, just log it
-            } finally {
-                this.loadingPrerequisites = false;
-            }
-        },
-
-        async onCourseChange() {
-            // Prerequisites are now section-specific, so we only show them when editing an existing section
-            if (this.editingId) {
-                // Reload prerequisites for this section
-                this.showPrerequisitesSection = true;
-                this.newPrerequisiteCourse = '';
-                this.coursePrerequisites = [];
-                await this.loadSectionPrerequisites(this.editingId);
-            } else {
-                // When adding new section, prerequisites can only be managed after section is created
-                this.coursePrerequisites = [];
-                this.showPrerequisitesSection = false;
-                this.newPrerequisiteCourse = '';
-            }
-        },
-
-        async addPrerequisite() {
-            if (!this.editingId) {
-                this.error = 'لطفاً ابتدا بخش را ذخیره کنید، سپس پیش‌نیازها را اضافه کنید';
-                return;
-            }
-
-            if (!this.newPrerequisiteCourse) {
-                this.error = 'لطفاً پیش‌نیاز را انتخاب کنید';
-                return;
-            }
-
-            const sectionId = parseInt(this.editingId);
-            const prereqId = parseInt(this.newPrerequisiteCourse);
-
-            // Check if prerequisite already exists
-            const exists = this.coursePrerequisites.some(p => {
-                const existingPrereqId = parseInt(p.prerequisite_course);
-                return existingPrereqId === prereqId;
-            });
-            
-            if (exists) {
-                this.error = 'این پیش‌نیاز قبلاً اضافه شده است';
-                return;
-            }
-
-            try {
-                const data = {
-                    section: sectionId,
-                    prerequisite_course: prereqId
-                };
-                
-                await API.addPrerequisite(data);
-                this.success = 'پیش‌نیاز با موفقیت اضافه شد';
-                this.error = '';
-                this.newPrerequisiteCourse = '';
-                await this.loadSectionPrerequisites(sectionId);
-                // Clear success message after 3 seconds
-                setTimeout(() => {
-                    this.success = '';
-                }, 3000);
-            } catch (err) {
-                this.error = err.message || 'خطا در اضافه کردن پیش‌نیاز';
-                this.success = '';
-            }
-        },
-
-        async removePrerequisite(prerequisiteId, prerequisiteCourseId) {
-            if (!confirm('آیا از حذف این پیش‌نیاز اطمینان دارید؟')) {
-                return;
-            }
-
-            if (!this.editingId) {
-                this.error = 'خطا: بخش انتخاب نشده است';
-                return;
-            }
-
-            // Validate inputs
-            if (prerequisiteCourseId === null || prerequisiteCourseId === undefined || prerequisiteCourseId === '') {
-                this.error = 'خطا: اطلاعات پیش‌نیاز نامعتبر است';
-                console.error('Invalid prerequisiteCourseId:', prerequisiteCourseId);
-                return;
-            }
-
-            try {
-                const sectionId = parseInt(this.editingId);
-                const prereqCourseId = parseInt(prerequisiteCourseId);
-                
-                // Validate parsed values
-                if (isNaN(sectionId) || isNaN(prereqCourseId) || sectionId <= 0 || prereqCourseId <= 0) {
-                    this.error = 'خطا: شناسه‌های نامعتبر';
-                    console.error('Invalid IDs - sectionId:', sectionId, 'prereqCourseId:', prereqCourseId);
-                    return;
-                }
-                
-                const data = {
-                    section: sectionId,
-                    prerequisite_course: prereqCourseId
-                };
-                
-                console.log('Removing prerequisite with data:', data);
-                
-                const result = await API.removePrerequisite(data);
-                console.log('Remove prerequisite result:', result);
-                
-                this.success = 'پیش‌نیاز با موفقیت حذف شد';
-                this.error = '';
-                
-                // Force clear the array first to ensure reactivity
-                this.coursePrerequisites = [];
-                
-                // Reload prerequisites to update the list
-                await this.loadSectionPrerequisites(sectionId);
-                
-                // Clear success message after 3 seconds
-                setTimeout(() => {
-                    this.success = '';
-                }, 3000);
-            } catch (err) {
-                console.error('Error removing prerequisite:', err);
-                console.error('Error details:', {
-                    message: err.message,
-                    stack: err.stack,
-                    editingId: this.editingId,
-                    prerequisiteCourseId: prerequisiteCourseId
-                });
-                this.error = err.message || 'خطا در حذف پیش‌نیاز. لطفاً دوباره تلاش کنید.';
-                this.success = '';
-            }
-        },
-
-        getPrerequisiteCourseName(prerequisite) {
-            const prereqId = parseInt(prerequisite.prerequisite_course);
-            const course = this.courses.find(c => c.id === prereqId);
-            return course ? `${course.code} - ${course.title}` : `درس #${prereqId}`;
-        },
-
-        getAvailablePrerequisiteCourses() {
-            if (!this.form.course) return this.courses;
-            
-            const currentCourseId = parseInt(this.form.course);
-            const existingPrereqIds = this.coursePrerequisites.map(p => 
-                parseInt(p.prerequisite_course)
-            );
-            
-            return this.courses.filter(c => 
-                c.id !== currentCourseId && !existingPrereqIds.includes(c.id)
-            );
         },
 
         // Schedule management
@@ -537,27 +346,15 @@ function termOfferingsManager() {
                 if (this.editingId) {
                     await API.updateSection(this.editingId, data);
                     this.success = 'ارائه با موفقیت ویرایش شد';
-                    // Reload prerequisites after update
-                    await this.loadSectionPrerequisites(this.editingId);
                 } else {
-                    const newSection = await API.createSection(data);
-                    sectionId = newSection.id;
-                    this.editingId = sectionId; // Set editingId so prerequisites can be managed
-                    isNewSection = true;
-                    this.success = 'ارائه با موفقیت اضافه شد. اکنون می‌توانید پیش‌نیازها را مدیریت کنید.';
-                    // Load prerequisites for the newly created section
-                    this.showPrerequisitesSection = true;
-                    await this.loadSectionPrerequisites(sectionId);
+                    await API.createSection(data);
+                    this.success = 'ارائه با موفقیت اضافه شد';
                 }
                 
                 await this.loadSections();
-                
-                // Only close modal if editing existing section (not when adding new, so user can manage prerequisites)
-                if (!isNewSection) {
-                    setTimeout(() => {
-                        this.closeModal();
-                    }, 1000);
-                }
+                setTimeout(() => {
+                    this.closeModal();
+                }, 1000);
             } catch (err) {
                 this.error = err.message || 'خطا در ذخیره ارائه';
             }
