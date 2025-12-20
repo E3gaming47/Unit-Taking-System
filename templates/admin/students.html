@@ -75,8 +75,12 @@
                         <td x-text="student.student_id || '-'"></td>
                         <td x-text="student.email || '-'"></td>
                         <td>
-                            <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(student)">ویرایش</button>
-                            <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteStudent(student.id, student.username)">حذف</button>
+                            <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(student)" title="ویرایش">
+                                <i class="fas fa-edit"></i> ویرایش
+                            </button>
+                            <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteStudent(student.id, student.username)" title="حذف">
+                                <i class="fas fa-trash"></i> حذف
+                            </button>
                         </td>
                     </tr>
                 </template>

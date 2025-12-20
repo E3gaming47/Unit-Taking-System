@@ -15,7 +15,9 @@
     <!-- Header -->
     <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
         <h2>لیست دروس</h2>
-        <button class="btn btn-primary" @click="openAddModal()">افزودن درس جدید</button>
+        <button class="btn btn-primary" @click="openAddModal()">
+            <i class="fas fa-plus"></i> افزودن درس جدید
+        </button>
     </div>
 
     <!-- Search Filters -->
@@ -102,14 +104,22 @@
                         <td x-text="course.units"></td>
                         <td x-text="getDepartmentNames(course)"></td>
                         <td>
-                            <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(course)">ویرایش</button>
-                            <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteCourse(course.id, course.title)">حذف</button>
+                            <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(course)" title="ویرایش">
+                                <i class="fas fa-edit"></i> ویرایش
+                            </button>
+                            <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteCourse(course.id, course.title)" title="حذف">
+                                <i class="fas fa-trash"></i> حذف
+                            </button>
                         </td>
                     </tr>
                 </template>
                 <tr x-show="courses.length === 0">
-                    <td colspan="5" style="text-align: center; padding: 40px; color: var(--gray-color);">
-                        درسی وجود ندارد
+                    <td colspan="5" class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-book-open"></i>
+                        </div>
+                        <h3 style="margin: 10px 0; color: var(--gray-color);">درسی وجود ندارد</h3>
+                        <p style="color: var(--gray-color); opacity: 0.7;">برای شروع، اولین درس را اضافه کنید</p>
                     </td>
                 </tr>
             </tbody>
@@ -200,14 +210,15 @@
                                     <template x-for="prereq in coursePrerequisites" :key="prereq.id">
                                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.3); border-radius: 6px;">
                                             <span x-text="getPrerequisiteCourseName(prereq)"></span>
-                                            <button 
-                                                type="button" 
-                                                class="btn btn-danger" 
-                                                style="padding: 4px 12px; font-size: 12px;"
-                                                @click="removePrerequisite(prereq.id, prereq.prerequisite_course)"
-                                            >
-                                                حذف
-                                            </button>
+                                        <button 
+                                            type="button" 
+                                            class="btn btn-danger" 
+                                            style="padding: 4px 12px; font-size: 12px;"
+                                            @click="removePrerequisite(prereq.id, prereq.prerequisite_course)"
+                                            title="حذف پیش‌نیاز"
+                                        >
+                                            <i class="fas fa-times"></i> حذف
+                                        </button>
                                         </div>
                                     </template>
                                 </div>
@@ -217,8 +228,12 @@
                 </template>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @click="closeModal()">انصراف</button>
-                    <button type="submit" class="btn btn-primary">ذخیره</button>
+                    <button type="button" class="btn btn-secondary" @click="closeModal()">
+                        <i class="fas fa-times"></i> انصراف
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> ذخیره
+                    </button>
                 </div>
             </form>
         </div>
