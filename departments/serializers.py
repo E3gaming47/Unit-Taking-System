@@ -12,7 +12,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
         if queryset.exists():
-            raise serializers.ValidationError("A department with this name already exists.")
+            raise serializers.ValidationError("دپارتمانی با این نام قبلاً ثبت شده است.")
         return value
 
     def validate_code(self, value):
@@ -20,5 +20,5 @@ class DepartmentSerializer(serializers.ModelSerializer):
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
         if queryset.exists():
-            raise serializers.ValidationError("A department with this code already exists.")
+            raise serializers.ValidationError("دپارتمانی با این کد قبلاً ثبت شده است.")
         return value

@@ -67,7 +67,7 @@ class SectionSchedule(models.Model):
 
     def clean(self):
         if self.start_time >= self.end_time:
-            raise ValidationError("Class start_time must be before end_time.")
+            raise ValidationError("زمان شروع کلاس باید قبل از زمان پایان باشد.")
 
 
 class SectionExam(models.Model):
@@ -107,7 +107,7 @@ class Prerequisite(models.Model):
         # Check if prerequisite course is the same as course
         if self.course and self.prerequisite_course:
             if self.course_id == self.prerequisite_course_id:
-                raise ValidationError("A course cannot be a prerequisite of itself.")
+                raise ValidationError("یک درس نمی‌تواند پیش‌نیاز خودش باشد.")
 
     def save(self, *args, **kwargs):
         # Ensure clean() is called before saving

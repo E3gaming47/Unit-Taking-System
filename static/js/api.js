@@ -26,7 +26,7 @@ const API = {
             if (response.ok) {
                 return null;
             }
-            throw new Error('خطا در ارتباط با سرور');
+            throw new Error('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.');
         }
         
         if (!response.ok) {
@@ -58,7 +58,7 @@ const API = {
                 throw new Error('شما دسترسی لازم برای این عملیات را ندارید.');
             }
             
-            const error = data.detail || data.message || data.username || data.password || 'خطا در ارتباط با سرور';
+            const error = data.detail || data.message || data.username || data.password || 'خطا در ارتباط با سرور. لطفاً دوباره تلاش کنید.';
             throw new Error(error);
         }
         

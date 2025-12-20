@@ -34,7 +34,7 @@ class CourseSerializer(serializers.ModelSerializer):
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
         if queryset.exists():
-            raise serializers.ValidationError("A course with this code already exists.")
+            raise serializers.ValidationError("درسی با این کد قبلاً ثبت شده است.")
         return value
 
     def validate_title(self, value):
@@ -43,13 +43,13 @@ class CourseSerializer(serializers.ModelSerializer):
             queryset = queryset.exclude(pk=self.instance.pk)
         if queryset.exists():
             raise serializers.ValidationError(
-                "A course with this title already exists."
+                "درسی با این عنوان قبلاً ثبت شده است."
             )
         return value
 
     def validate_units(self, value):
         if value not in range(1, 5):
-            raise serializers.ValidationError("Units must be between 1 and 4.")
+            raise serializers.ValidationError("تعداد واحد باید بین ۱ تا ۴ باشد.")
         return value
 
     def validate_departments(self, value):
@@ -61,7 +61,7 @@ class CourseSerializer(serializers.ModelSerializer):
         for dept in value:
             if dept.id in unique_ids:
                 raise serializers.ValidationError(
-                    "Duplicate departments selected for this course."
+                    "یک دپارتمان نمی‌تواند دو بار برای این درس انتخاب شود."
                 )
             unique_ids.add(dept.id)
         return value

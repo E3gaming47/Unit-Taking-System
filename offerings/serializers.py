@@ -6,6 +6,7 @@ from terms.models import Term
 from .models import Prerequisite, Section, SectionExam, SectionSchedule
 from .services import (
     check_exam_conflict,
+    check_location_conflict,
     check_time_conflict,
     prerequisites_valid,
 )
@@ -49,7 +50,7 @@ class SectionCreateSerializer(serializers.ModelSerializer):
 
     def validate_capacity(self, value):
         if value <= 0:
-            raise serializers.ValidationError("Capacity must be a positive integer.")
+            raise serializers.ValidationError("ظرفیت باید یک عدد مثبت باشد.")
         return value
 
     def validate(self, attrs):
@@ -79,7 +80,9 @@ class SectionCreateSerializer(serializers.ModelSerializer):
             exam = SectionExam(section=section, **exam_data)
             exam.save()
 
+        # Check for conflicts: professor time conflicts and location conflicts
         check_time_conflict(section)
+        check_location_conflict(section)
         check_exam_conflict(section)
 
         return section
@@ -104,7 +107,9 @@ class SectionCreateSerializer(serializers.ModelSerializer):
             exam = SectionExam(section=instance, **exam_data)
             exam.save()
 
+        # Check for conflicts: professor time conflicts and location conflicts
         check_time_conflict(instance)
+        check_location_conflict(instance)
         check_exam_conflict(instance)
 
         return instance
@@ -148,14 +153,14 @@ class PrerequisiteSerializer(serializers.ModelSerializer):
         prereq = attrs.get("prerequisite_course")
 
         if not course:
-            raise serializers.ValidationError({"course": "Course is required."})
+            raise serializers.ValidationError({"course": "انتخاب درس الزامی است."})
         
         if not prereq:
-            raise serializers.ValidationError({"prerequisite_course": "Prerequisite course is required."})
+            raise serializers.ValidationError({"prerequisite_course": "انتخاب درس پیش‌نیاز الزامی است."})
 
         # Check if prerequisite course is the same as course
         if course.id == prereq.id:
-            raise serializers.ValidationError("A course cannot be a prerequisite of itself.")
+            raise serializers.ValidationError("یک درس نمی‌تواند پیش‌نیاز خودش باشد.")
 
         # Validate prerequisites (exclude current instance if updating)
         exclude_id = self.instance.id if self.instance else None

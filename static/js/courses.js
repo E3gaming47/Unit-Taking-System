@@ -316,7 +316,7 @@ function coursesManager() {
             const prereqId = parseInt(this.newPrerequisiteCourse);
 
             if (isNaN(courseId) || isNaN(prereqId) || courseId <= 0 || prereqId <= 0) {
-                this.error = 'خطا: شناسه‌های نامعتبر';
+                this.error = 'خطا: شناسه‌های وارد شده نامعتبر است.';
                 return;
             }
 
@@ -359,12 +359,12 @@ function coursesManager() {
             }
 
             if (!this.editingId) {
-                this.error = 'خطا: درس انتخاب نشده است';
+                this.error = 'خطا: درس انتخاب نشده است.';
                 return;
             }
 
             if (prerequisiteCourseId === null || prerequisiteCourseId === undefined || prerequisiteCourseId === '') {
-                this.error = 'خطا: اطلاعات پیش‌نیاز نامعتبر است';
+                this.error = 'خطا: اطلاعات پیش‌نیاز نامعتبر است.';
                 return;
             }
 
@@ -373,7 +373,7 @@ function coursesManager() {
                 const prereqCourseId = parseInt(prerequisiteCourseId);
                 
                 if (isNaN(courseId) || isNaN(prereqCourseId) || courseId <= 0 || prereqCourseId <= 0) {
-                    this.error = 'خطا: شناسه‌های نامعتبر';
+                    this.error = 'خطا: شناسه‌های وارد شده نامعتبر است.';
                     return;
                 }
                 

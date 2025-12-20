@@ -24,7 +24,7 @@ class UserSerializer(serializers.ModelSerializer):
             return value
         
         if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("A user with this username already exists.")
+            raise serializers.ValidationError("کاربری با این نام کاربری قبلاً ثبت شده است.")
         return value
 
     def validate_email(self, value):
@@ -34,7 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
                 return value
             
             if User.objects.filter(email=value).exists():
-                raise serializers.ValidationError("A user with this email already exists.")
+                raise serializers.ValidationError("کاربری با این ایمیل قبلاً ثبت شده است.")
         return value
 
     def validate_student_id(self, value):
@@ -44,7 +44,7 @@ class UserSerializer(serializers.ModelSerializer):
                 return value
             
             if User.objects.filter(student_id=value).exists():
-                raise serializers.ValidationError("A user with this student_id already exists.")
+                raise serializers.ValidationError("کاربری با این شماره دانشجویی قبلاً ثبت شده است.")
         return value
 
     def validate_professor_id(self, value):
@@ -54,7 +54,7 @@ class UserSerializer(serializers.ModelSerializer):
                 return value
             
             if User.objects.filter(professor_id=value).exists():
-                raise serializers.ValidationError("A user with this professor_id already exists.")
+                raise serializers.ValidationError("کاربری با این شماره استادی قبلاً ثبت شده است.")
         return value
 
     def validate(self, data):
@@ -66,27 +66,27 @@ class UserSerializer(serializers.ModelSerializer):
         if role == 'student':
             if not student_id:
                 raise serializers.ValidationError({
-                    'student_id': 'Student must have a student_id'
+                    'student_id': 'دانشجو باید شماره دانشجویی داشته باشد.'
                 })
             if professor_id:
                 raise serializers.ValidationError({
-                    'professor_id': 'Student cannot have a professor_id'
+                    'professor_id': 'دانشجو نمی‌تواند شماره استادی داشته باشد.'
                 })
         
         elif role == 'professor':
             if not professor_id:
                 raise serializers.ValidationError({
-                    'professor_id': 'Professor must have a professor_id'
+                    'professor_id': 'استاد باید شماره استادی داشته باشد.'
                 })
             if student_id:
                 raise serializers.ValidationError({
-                    'student_id': 'Professor cannot have a student_id'
+                    'student_id': 'استاد نمی‌تواند شماره دانشجویی داشته باشد.'
                 })
         
         elif role == 'admin':
             if student_id or professor_id:
                 raise serializers.ValidationError({
-                    'role': 'Admin cannot have student_id or professor_id'
+                    'role': 'مدیر نمی‌تواند شماره دانشجویی یا شماره استادی داشته باشد.'
                 })
 
         return data
@@ -133,7 +133,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("A user with this username already exists.")
+            raise serializers.ValidationError("کاربری با این نام کاربری قبلاً ثبت شده است.")
         return value
 
     def validate_email(self, value):
@@ -159,27 +159,27 @@ class UserCreateSerializer(serializers.ModelSerializer):
         if role == 'student':
             if not student_id:
                 raise serializers.ValidationError({
-                    'student_id': 'Student must have a student_id'
+                    'student_id': 'دانشجو باید شماره دانشجویی داشته باشد.'
                 })
             if professor_id:
                 raise serializers.ValidationError({
-                    'professor_id': 'Student cannot have a professor_id'
+                    'professor_id': 'دانشجو نمی‌تواند شماره استادی داشته باشد.'
                 })
         
         elif role == 'professor':
             if not professor_id:
                 raise serializers.ValidationError({
-                    'professor_id': 'Professor must have a professor_id'
+                    'professor_id': 'استاد باید شماره استادی داشته باشد.'
                 })
             if student_id:
                 raise serializers.ValidationError({
-                    'student_id': 'Professor cannot have a student_id'
+                    'student_id': 'استاد نمی‌تواند شماره دانشجویی داشته باشد.'
                 })
         
         elif role == 'admin':
             if student_id or professor_id:
                 raise serializers.ValidationError({
-                    'role': 'Admin cannot have student_id or professor_id'
+                    'role': 'مدیر نمی‌تواند شماره دانشجویی یا شماره استادی داشته باشد.'
                 })
 
         return data
@@ -199,7 +199,7 @@ class LoginSerializer(serializers.Serializer):
     def validate_username(self, value):
         
         if not value or not value.strip():
-            raise serializers.ValidationError("Username cannot be empty")
+            raise serializers.ValidationError("نام کاربری نمی‌تواند خالی باشد.")
         return value.strip()
 
     def validate(self, data):
@@ -207,15 +207,15 @@ class LoginSerializer(serializers.Serializer):
         password = data.get("password")
 
         if not username or not password:
-            raise serializers.ValidationError("Username and password are required")
+            raise serializers.ValidationError("نام کاربری و رمز عبور الزامی است.")
 
         user = authenticate(username=username, password=password)
 
         if not user:
-            raise serializers.ValidationError("The username or password is incorrect")
+            raise serializers.ValidationError("نام کاربری یا رمز عبور اشتباه است.")
 
         if not user.is_active:
-            raise serializers.ValidationError("This account has been deactivated")
+            raise serializers.ValidationError("این حساب کاربری غیرفعال شده است.")
 
         data["user"] = user
         return data

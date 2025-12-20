@@ -37,7 +37,7 @@ class Course(models.Model):
 
     def clean(self):
         if not (1 <= self.units <= 4):
-            raise ValidationError("Units must be between 1 and 4.")
+            raise ValidationError("تعداد واحد باید بین ۱ تا ۴ باشد.")
 
     def __str__(self):
         return f"{self.code} - {self.title}"

@@ -13,7 +13,7 @@ from .models import Prerequisite, Section, SectionExam, SectionSchedule
 
 def assign_professor(section: Section, professor: User) -> None:
     if professor.role != "professor":
-        raise ValidationError("Only users with role 'professor' can be assigned to a section.")
+        raise ValidationError("فقط کاربران با نقش استاد می‌توانند به بخش اختصاص داده شوند.")
 
     section.professor = professor
     section.save(update_fields=["professor"])
@@ -45,8 +45,13 @@ def check_time_conflict(section: Section) -> None:
             end_time__gt=sch.start_time,
         )
         if overlapping.exists():
+            conflicting_schedule = overlapping.first()
+            conflicting_section = conflicting_schedule.section
+            day_name = dict(SectionSchedule.WeekDay.choices).get(sch.day_of_week, "نامشخص")
             raise ValidationError(
-                "Professor has another class at the same time (schedule conflict detected)."
+                f"تعارض زمانی استاد: استاد در همین زمان کلاس دیگری دارد. "
+                f"کلاس متعارض: {conflicting_section.course.code} (بخش {conflicting_section.section_number}) "
+                f"در روز {day_name} از {sch.start_time} تا {sch.end_time}."
             )
 
 
@@ -63,7 +68,65 @@ def check_exam_conflict(section: Section) -> None:
     ).exclude(section_id=section.id)
 
     if other_exams.filter(exam_datetime=exam.exam_datetime).exists():
-        raise ValidationError("Professor has another exam at the same time.")
+        conflicting_exam = other_exams.filter(exam_datetime=exam.exam_datetime).first()
+        conflicting_section = conflicting_exam.section
+        raise ValidationError(
+            f"تعارض امتحان: استاد در همین زمان امتحان دیگری دارد. "
+            f"امتحان متعارض: {conflicting_section.course.code} (بخش {conflicting_section.section_number}) "
+            f"در تاریخ و زمان {exam.exam_datetime}."
+        )
+
+
+def check_location_conflict(section: Section) -> None:
+    """
+    Check if there are location conflicts for the section.
+    A conflict occurs when two sections have:
+    - Same term
+    - Same location (non-empty location)
+    - Same day of week
+    - Overlapping time slots
+    """
+    if not section.term_id:
+        return
+
+    schedules = SectionSchedule.objects.filter(section=section)
+    if not schedules.exists():
+        return
+
+    # Get all other sections in the same term
+    other_sections = (
+        Section.objects.filter(term_id=section.term_id)
+        .exclude(id=section.id)
+    )
+
+    # Get all schedules for other sections in the same term
+    other_schedules = SectionSchedule.objects.filter(
+        section__in=other_sections
+    )
+
+    for sch in schedules:
+        # Only check location conflicts if location is specified (non-empty)
+        if not sch.location or not sch.location.strip():
+            continue
+
+        # Find overlapping schedules with same location and same day
+        overlapping = other_schedules.filter(
+            day_of_week=sch.day_of_week,
+            location__iexact=sch.location.strip(),  # Case-insensitive location match
+            start_time__lt=sch.end_time,
+            end_time__gt=sch.start_time,
+        )
+
+        if overlapping.exists():
+            # Get the conflicting section details for better error message
+            conflicting_schedule = overlapping.first()
+            conflicting_section = conflicting_schedule.section
+            day_name = dict(SectionSchedule.WeekDay.choices).get(sch.day_of_week, "نامشخص")
+            raise ValidationError(
+                f"تعارض مکان: مکان '{sch.location}' در همین زمان توسط بخش دیگری رزرو شده است. "
+                f"بخش متعارض: {conflicting_section.course.code} (بخش {conflicting_section.section_number}) "
+                f"در روز {day_name} از {sch.start_time} تا {sch.end_time}."
+            )
 
 
 def is_capacity_available(section: Section, enrolled_count: int) -> bool:
@@ -82,7 +145,7 @@ def _dfs_prereq_graph(
     Uses course_id directly instead of Course object for efficiency.
     """
     if course_id in visiting:
-        raise ValidationError("Prerequisite graph contains a cycle.")
+        raise ValidationError("گراف پیش‌نیازها شامل چرخه است. لطفاً پیش‌نیازها را بررسی کنید.")
 
     if course_id in visited:
         return
@@ -108,7 +171,7 @@ def prerequisites_valid(course: Course, candidate_prereqs: Iterable[Course], exc
     candidate_ids = {c.id for c in candidate_prereqs}
 
     if course.id in candidate_ids:
-        raise ValidationError("A course cannot be a prerequisite of itself.")
+        raise ValidationError("یک درس نمی‌تواند پیش‌نیاز خودش باشد.")
     
     # Build graph from existing prerequisites, excluding the one being updated if provided
     edges_query = Prerequisite.objects.all()
@@ -126,14 +189,15 @@ def prerequisites_valid(course: Course, candidate_prereqs: Iterable[Course], exc
     
     # Check if any of the candidate prerequisites would create a direct reverse dependency
     # (i.e., course is already a prerequisite of any candidate)
-    for candidate_id in candidate_ids:
+    for candidate_prereq in candidate_prereqs:
+        candidate_id = candidate_prereq.id
         # Check if course is already a prerequisite of the candidate (reverse dependency)
         if candidate_id in graph:
             # Check if course.id is in the prerequisites of candidate_id
             if course.id in graph.get(candidate_id, set()):
                 raise ValidationError(
-                    f"Circular dependency detected: Course {course.id} cannot be a prerequisite of "
-                    f"course {candidate_id} because course {candidate_id} is already a prerequisite of course {course.id}."
+                    f"وابستگی چرخه‌ای: درس '{course.code}' نمی‌تواند پیش‌نیاز درس '{candidate_prereq.code}' باشد "
+                    f"زیرا درس '{candidate_prereq.code}' قبلاً به عنوان پیش‌نیاز درس '{course.code}' تعریف شده است."
                 )
 
     # Use DFS to detect cycles in the entire graph

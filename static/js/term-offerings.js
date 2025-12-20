@@ -240,7 +240,7 @@ function termOfferingsManager() {
                 return `${day} ${start}-${end}${location}`;
             } catch (err) {
                 console.error('Error formatting schedule:', err);
-                return 'خطا در نمایش';
+                return 'خطا در نمایش اطلاعات';
             }
         },
 
@@ -287,7 +287,7 @@ function termOfferingsManager() {
                 return `${datetime}${location}`;
             } catch (err) {
                 console.error('Error formatting exam:', err);
-                return 'خطا در نمایش';
+                return 'خطا در نمایش اطلاعات';
             }
         },
 
