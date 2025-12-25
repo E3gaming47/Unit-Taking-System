@@ -3,11 +3,10 @@ from rest_framework import serializers
 from accounts.models import User
 from courses.models import Course
 from terms.models import Term
-from .models import Prerequisite, Section, SectionExam, SectionSchedule
+from .models import Section, SectionExam, SectionSchedule
 from .services import (
     check_exam_conflict,
     check_time_conflict,
-    prerequisites_valid,
 )
 
 
@@ -130,24 +129,3 @@ class SectionDetailSerializer(serializers.ModelSerializer):
             "schedules",
             "exam",
         ]
-
-
-class PrerequisiteSerializer(serializers.ModelSerializer):
-    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
-    prerequisite_course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
-
-    class Meta:
-        model = Prerequisite
-        fields = ["id", "course", "prerequisite_course"]
-        read_only_fields = ["id"]
-
-    def validate(self, attrs):
-        course = attrs.get("course")
-        prereq = attrs.get("prerequisite_course")
-
-        if course == prereq:
-            raise serializers.ValidationError("A course cannot be a prerequisite of itself.")
-
-        prerequisites_valid(course, [prereq])
-        return attrs
-
