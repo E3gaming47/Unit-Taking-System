@@ -86,24 +86,3 @@ class SectionExam(models.Model):
     class Meta:
         ordering = ["exam_datetime"]
 
-
-class Prerequisite(models.Model):
-    course = models.ForeignKey(
-        "courses.Course",
-        on_delete=models.CASCADE,
-        related_name="prerequisites",
-    )
-
-    prerequisite_course = models.ForeignKey(
-        "courses.Course",
-        on_delete=models.CASCADE,
-        related_name="is_prerequisite_of",
-    )
-
-    class Meta:
-        unique_together = ("course", "prerequisite_course")
-
-    def clean(self):
-        if self.course_id == self.prerequisite_course_id:
-            raise ValidationError("A course cannot be a prerequisite of itself.")
-
