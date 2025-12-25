@@ -4,7 +4,10 @@ from rest_framework import serializers
 from departments.models import Department
 from departments.serializers import DepartmentSerializer
 
-from .models import Course
+from .models import Course, Prerequisite
+from .services import prerequisites_valid
+
+
 
 class CourseSerializer(serializers.ModelSerializer):
     departments = serializers.PrimaryKeyRelatedField(
@@ -65,3 +68,22 @@ class CourseSerializer(serializers.ModelSerializer):
                 )
             unique_ids.add(dept.id)
         return value
+
+class PrerequisiteSerializer(serializers.ModelSerializer):
+    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
+    prerequisite_course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
+
+    class Meta:
+        model = Prerequisite
+        fields = ["id", "course", "prerequisite_course"]
+        read_only_fields = ["id"]
+
+    def validate(self, attrs):
+        course = attrs.get("course")
+        prereq = attrs.get("prerequisite_course")
+
+        if course == prereq:
+            raise serializers.ValidationError("A course cannot be a prerequisite of itself.")
+
+        prerequisites_valid(course, [prereq])
+        return attrs
