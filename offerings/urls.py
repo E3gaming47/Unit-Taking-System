@@ -1,5 +1,6 @@
 from rest_framework.routers import DefaultRouter
-from .views import PrerequisiteViewSet, SectionViewSet
+from courses.views import PrerequisiteViewSet
+from .views import SectionViewSet
 
 router = DefaultRouter()
 router.register(r"sections", SectionViewSet, basename="section")

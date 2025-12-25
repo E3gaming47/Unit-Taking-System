@@ -2,16 +2,14 @@ from rest_framework import filters, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from accounts.permissions import IsAdmin
 from api.pagination import StandardResultsSetPagination
 from terms.models import Term
 from .models import Prerequisite, Section
+from courses.serializers import PrerequisiteSerializer
 from .serializers import (
-    PrerequisiteSerializer,
     SectionCreateSerializer,
     SectionDetailSerializer,
 )
-from .services import prerequisites_valid
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
@@ -50,7 +48,7 @@ class SectionViewSet(viewsets.ModelViewSet):
 
         qs = super().get_queryset()
         request = self.request
-
+        
         term_id = request.query_params.get("term")
         department_id = request.query_params.get("department")
         professor_id = request.query_params.get("professor")
@@ -70,39 +68,4 @@ class SectionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(professor_id=professor_id)
 
         return qs.distinct()
-
-
-class PrerequisiteViewSet(viewsets.ModelViewSet):
-
-    queryset = Prerequisite.objects.all().select_related("course", "prerequisite_course")
-    serializer_class = PrerequisiteSerializer
-    permission_classes = [IsAdminOrReadOnly]
-    pagination_class = StandardResultsSetPagination
-
-    @action(detail=False, methods=["post"], url_path="add_prerequisite")
-    def add_prerequisite(self, request):
-
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=201)
-
-    @action(detail=False, methods=["post"], url_path="remove_prerequisite")
-    def remove_prerequisite(self, request):
-
-        course_id = request.data.get("course")
-        prereq_id = request.data.get("prerequisite_course")
-
-        if not course_id or not prereq_id:
-            return Response(
-                {"detail": "course and prerequisite_course are required."},
-                status=400,
-            )
-
-        Prerequisite.objects.filter(
-            course_id=course_id,
-            prerequisite_course_id=prereq_id,
-        ).delete()
-
-        return Response(status=204)
 
