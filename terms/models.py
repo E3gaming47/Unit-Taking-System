@@ -55,37 +55,37 @@ class Term(models.Model):
         if not (self.start_date <= self.registration_end <= self.end_date):
             errors["registration_end"] = "پایان انتخاب واحد باید داخل بازه ترم باشد."
 
+        qs = Term.objects.all()
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+
+        overlap = qs.filter(
+            start_date__lte=self.end_date,
+            end_date__gte=self.start_date,
+        )
+        if overlap.exists():
+            errors.setdefault("start_date", "بازه این ترم با ترم دیگری هم‌پوشانی دارد.")
+            errors.setdefault("end_date", "بازه این ترم با ترم دیگری هم‌پوشانی دارد.")
+
+        today = date.today()
+
         if self.status == Term.TermStatus.ACTIVE:
-            qs = Term.objects.filter(status=Term.TermStatus.ACTIVE)
+            active_qs = Term.objects.filter(status=Term.TermStatus.ACTIVE)
             if self.pk:
-                qs = qs.exclude(pk=self.pk)
-            if qs.exists():
-                errors["status"] = "فقط یک ترم می‌تواند فعال باشد."
+                active_qs = active_qs.exclude(pk=self.pk)
+            if active_qs.exists():
+                errors.setdefault("status", "فقط یک ترم می‌تواند فعال باشد.")
 
-            qs = Term.objects.all()
-            if self.pk:
-                qs = qs.exclude(pk=self.pk)
+            if not (self.start_date <= today <= self.end_date):
+                errors.setdefault("status", "فعال‌سازی ترم فقط داخل بازه ترم مجاز است.")
 
-            overlap = qs.filter(
-                start_date__lte=self.end_date,
-                end_date__gte=self.start_date,
-            )
-            if overlap.exists():
-                errors["start_date"] = "بازه این ترم با ترم دیگری هم‌پوشانی دارد."
- 
-            today = date.today()
+        elif self.status in (Term.TermStatus.PLANNING, Term.TermStatus.READY):
+            if today >= self.start_date:
+                errors.setdefault("status", "وضعیت این ترم فقط قبل از شروع ترم مجاز است.")
 
-            if self.status == Term.TermStatus.ACTIVE:
-                if not (self.start_date <= today <= self.end_date):
-                    errors["status"] = "فعال‌سازی ترم فقط داخل بازه ترم مجاز است."
-
-            if self.status == Term.TermStatus.READY:
-                if today >= self.start_date:
-                    errors["status"] = "وضعیت READY فقط قبل از شروع ترم مجاز است."
-
-            if self.status == Term.TermStatus.ARCHIVED:
-                if today <= self.end_date:
-                    errors["status"] = "وضعیت ARCHIVED فقط بعد از پایان ترم مجاز است."
+        elif self.status == Term.TermStatus.ARCHIVED:
+            if today <= self.end_date:
+                errors.setdefault("status", "وضعیت ARCHIVED فقط بعد از پایان ترم مجاز است.")
 
         if errors:
             raise ValidationError(errors)

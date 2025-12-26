@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.core.exceptions import ValidationError as DjangoValidationError
 from .models import Term
 
 
@@ -47,3 +48,18 @@ class TermSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
 
         return data
+
+    def create(self, validated_data):
+        try:
+            return Term.objects.create(**validated_data)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(getattr(e, "message_dict", {"detail": e.messages}))
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        try:
+            instance.save()
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(getattr(e, "message_dict", {"detail": e.messages}))
+        return instance
