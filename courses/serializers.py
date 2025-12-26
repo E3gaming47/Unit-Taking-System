@@ -85,6 +85,48 @@ class CourseSerializer(serializers.ModelSerializer):
             .values_list("prerequisite_course_id", flat=True)
     )
 
+        
+    @transaction.atomic
+    def create(self, validated_data):
+        departments = validated_data.pop("departments", [])
+        prerequisite_courses = validated_data.pop("prerequisites", [])
+
+        course = Course.objects.create(**validated_data)
+
+        if departments:
+            course.departments.set(departments)
+
+        if prerequisite_courses:
+            prerequisites_valid(course, prerequisite_courses)
+            Prerequisite.objects.bulk_create(
+                [Prerequisite(course=course, prerequisite_course=pr) for pr in prerequisite_courses]
+            )
+
+        return course
+
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        departments = validated_data.pop("departments", None)
+        prerequisite_courses = validated_data.pop("prerequisites", None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if departments is not None:
+            instance.departments.set(departments)
+
+        if prerequisite_courses is not None:
+            prerequisites_valid(instance, prerequisite_courses)
+            Prerequisite.objects.filter(course=instance).delete()
+            if prerequisite_courses:
+                Prerequisite.objects.bulk_create(
+                    [Prerequisite(course=instance, prerequisite_course=pr) for pr in prerequisite_courses]
+                )
+
+        return instance        
+
 class PrerequisiteSerializer(serializers.ModelSerializer):
     course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
     prerequisite_course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
@@ -103,45 +145,3 @@ class PrerequisiteSerializer(serializers.ModelSerializer):
 
         prerequisites_valid(course, [prereq])
         return attrs
-
-
-@transaction.atomic
-def create(self, validated_data):
-    departments = validated_data.pop("departments", [])
-    prerequisite_courses = validated_data.pop("prerequisites", [])
-
-    course = Course.objects.create(**validated_data)
-
-    if departments:
-        course.departments.set(departments)
-
-    if prerequisite_courses:
-        prerequisites_valid(course, prerequisite_courses)
-        Prerequisite.objects.bulk_create(
-            [Prerequisite(course=course, prerequisite_course=pr) for pr in prerequisite_courses]
-        )
-
-    return course
-
-
-@transaction.atomic
-def update(self, instance, validated_data):
-    departments = validated_data.pop("departments", None)
-    prerequisite_courses = validated_data.pop("prerequisites", None)
-
-    for attr, value in validated_data.items():
-        setattr(instance, attr, value)
-    instance.save()
-
-    if departments is not None:
-        instance.departments.set(departments)
-
-    if prerequisite_courses is not None:
-        prerequisites_valid(instance, prerequisite_courses)
-        Prerequisite.objects.filter(course=instance).delete()
-        if prerequisite_courses:
-            Prerequisite.objects.bulk_create(
-                [Prerequisite(course=instance, prerequisite_course=pr) for pr in prerequisite_courses]
-            )
-
-    return instance        

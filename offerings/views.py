@@ -4,7 +4,7 @@ from rest_framework.response import Response
 
 from api.pagination import StandardResultsSetPagination
 from terms.models import Term
-from .models import Prerequisite, Section
+from .models import Section
 from courses.serializers import PrerequisiteSerializer
 from .serializers import (
     SectionCreateSerializer,
@@ -48,7 +48,7 @@ class SectionViewSet(viewsets.ModelViewSet):
 
         qs = super().get_queryset()
         request = self.request
-        
+
         term_id = request.query_params.get("term")
         department_id = request.query_params.get("department")
         professor_id = request.query_params.get("professor")
