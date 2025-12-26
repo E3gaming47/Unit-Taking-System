@@ -1,11 +1,8 @@
 from rest_framework import filters, permissions, viewsets
-from rest_framework.decorators import action
-from rest_framework.response import Response
 
 from api.pagination import StandardResultsSetPagination
 from terms.models import Term
 from .models import Section
-from courses.serializers import PrerequisiteSerializer
 from .serializers import (
     SectionCreateSerializer,
     SectionDetailSerializer,
@@ -13,7 +10,6 @@ from .serializers import (
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
-
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return request.user and request.user.is_authenticated
@@ -21,7 +17,6 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 
 
 class SectionViewSet(viewsets.ModelViewSet):
-
     queryset = Section.objects.all().select_related("term", "course", "professor").prefetch_related(
         "schedules"
     )
@@ -45,7 +40,6 @@ class SectionViewSet(viewsets.ModelViewSet):
         return SectionCreateSerializer
 
     def get_queryset(self):
-
         qs = super().get_queryset()
         request = self.request
 
@@ -53,7 +47,6 @@ class SectionViewSet(viewsets.ModelViewSet):
         department_id = request.query_params.get("department")
         professor_id = request.query_params.get("professor")
 
-      
         if term_id:
             qs = qs.filter(term_id=term_id)
         else:
@@ -68,4 +61,3 @@ class SectionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(professor_id=professor_id)
 
         return qs.distinct()
-
