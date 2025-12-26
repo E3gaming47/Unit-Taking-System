@@ -72,6 +72,20 @@ class Term(models.Model):
             )
             if overlap.exists():
                 errors["start_date"] = "بازه این ترم با ترم دیگری هم‌پوشانی دارد."
+ 
+            today = date.today()
+
+            if self.status == Term.TermStatus.ACTIVE:
+                if not (self.start_date <= today <= self.end_date):
+                    errors["status"] = "فعال‌سازی ترم فقط داخل بازه ترم مجاز است."
+
+            if self.status == Term.TermStatus.READY:
+                if today >= self.start_date:
+                    errors["status"] = "وضعیت READY فقط قبل از شروع ترم مجاز است."
+
+            if self.status == Term.TermStatus.ARCHIVED:
+                if today <= self.end_date:
+                    errors["status"] = "وضعیت ARCHIVED فقط بعد از پایان ترم مجاز است."
 
         if errors:
             raise ValidationError(errors)
