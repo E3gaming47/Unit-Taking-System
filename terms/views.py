@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from datetime import date
 from accounts.permissions import IsAdmin
 from .models import Term
 from .serializers import TermSerializer
