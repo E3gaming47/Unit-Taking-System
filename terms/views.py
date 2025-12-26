@@ -35,23 +35,22 @@ class TermViewSet(viewsets.ModelViewSet):
     def activate(self, request, pk=None):
         term = self.get_object()
 
-        # اگر همین ترم فعال است
-        if term.is_active:
+        if term.status == Term.TermStatus.ACTIVE:
             return Response(
                 {"detail": "این ترم از قبل فعال است."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # غیر فعال کردن سایر ترم‌ها
-        Term.objects.filter(is_active=True).exclude(pk=term.pk).update(is_active=False)
+        Term.objects.filter(status=Term.TermStatus.ACTIVE).exclude(pk=term.pk).update(
+            status=Term.TermStatus.READY,
+            is_active=False,
+        )
 
-        # فعال کردن این ترم
-        term.is_active = True
-        term.save()  # clean + full_clean اجرا می‌شود
+        term.status = Term.TermStatus.ACTIVE
+        term.save()
 
         serializer = self.get_serializer(term)
         return Response(serializer.data)
-
     # -----------------------
     # اکشن غیرفعال‌سازی ترم
     # POST /terms/{id}/deactivate/
@@ -60,13 +59,13 @@ class TermViewSet(viewsets.ModelViewSet):
     def deactivate(self, request, pk=None):
         term = self.get_object()
 
-        if not term.is_active:
+        if term.status != Term.TermStatus.ACTIVE:
             return Response(
                 {"detail": "این ترم از قبل غیرفعال است."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        term.is_active = False
+        term.status = Term.TermStatus.READY
         term.save()
 
         serializer = self.get_serializer(term)
