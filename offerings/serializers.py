@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from accounts.models import User
 from courses.models import Course
+from departments.models import Classroom
 from terms.models import Term
 from .models import Section, SectionExam, SectionSchedule
 from .services import (
@@ -11,20 +12,31 @@ from .services import (
 
 
 class SectionScheduleSerializer(serializers.ModelSerializer):
+    classroom = serializers.PrimaryKeyRelatedField(
+        queryset=Classroom.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
     class Meta:
         model = SectionSchedule
-        fields = ["id", "day_of_week", "start_time", "end_time", "location"]
+        fields = ["id", "day_of_week", "start_time", "end_time", "classroom", "location"]
         read_only_fields = ["id"]
 
 
 class SectionExamSerializer(serializers.ModelSerializer):
+    classroom = serializers.PrimaryKeyRelatedField(
+        queryset=Classroom.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
     class Meta:
         model = SectionExam
-        fields = ["exam_datetime", "location"]
+        fields = ["exam_datetime", "classroom", "location"]
 
 
 class SectionCreateSerializer(serializers.ModelSerializer):
-
     schedules = SectionScheduleSerializer(many=True, required=False)
     exam = SectionExamSerializer(required=False)
 
@@ -51,31 +63,26 @@ class SectionCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Capacity must be a positive integer.")
         return value
 
-    def validate(self, attrs):
-
-        term = attrs.get("term") or getattr(self.instance, "term", None)
-        course = attrs.get("course") or getattr(self.instance, "course", None)
-        professor = attrs.get("professor") or getattr(self.instance, "professor", None)
-
-        if not all([term, course, professor]):
-            return attrs
-        return attrs
-
     def create(self, validated_data):
         schedules_data = validated_data.pop("schedules", [])
         exam_data = validated_data.pop("exam", None)
 
         section = Section.objects.create(**validated_data)
 
-        schedule_instances = []
         for sch_data in schedules_data:
+            if sch_data.get("classroom") and not sch_data.get("location"):
+                sch_data["location"] = str(sch_data["classroom"])
+
             schedule = SectionSchedule(section=section, **sch_data)
             schedule.full_clean()
             schedule.save()
-            schedule_instances.append(schedule)
 
         if exam_data:
+            if exam_data.get("classroom") and not exam_data.get("location"):
+                exam_data["location"] = str(exam_data["classroom"])
+
             exam = SectionExam(section=section, **exam_data)
+            exam.full_clean()
             exam.save()
 
         check_time_conflict(section)
@@ -94,14 +101,23 @@ class SectionCreateSerializer(serializers.ModelSerializer):
         if schedules_data is not None:
             instance.schedules.all().delete()
             for sch_data in schedules_data:
+                if sch_data.get("classroom") and not sch_data.get("location"):
+                    sch_data["location"] = str(sch_data["classroom"])
+
                 schedule = SectionSchedule(section=instance, **sch_data)
                 schedule.full_clean()
                 schedule.save()
 
         if exam_data is not None:
             SectionExam.objects.filter(section=instance).delete()
-            exam = SectionExam(section=instance, **exam_data)
-            exam.save()
+
+            if exam_data:
+                if exam_data.get("classroom") and not exam_data.get("location"):
+                    exam_data["location"] = str(exam_data["classroom"])
+
+                exam = SectionExam(section=instance, **exam_data)
+                exam.full_clean()
+                exam.save()
 
         check_time_conflict(instance)
         check_exam_conflict(instance)
