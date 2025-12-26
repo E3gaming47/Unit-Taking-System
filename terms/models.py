@@ -10,6 +10,7 @@ class Term(models.Model):
         READY = "ready", "Ready"
         ACTIVE = "active", "Active"
         ARCHIVED = "archived", "Archived"
+        
 
     name = models.CharField(max_length=64, unique=True)
 
@@ -60,6 +61,17 @@ class Term(models.Model):
                 qs = qs.exclude(pk=self.pk)
             if qs.exists():
                 errors["status"] = "فقط یک ترم می‌تواند فعال باشد."
+
+            qs = Term.objects.all()
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+
+            overlap = qs.filter(
+                start_date__lte=self.end_date,
+                end_date__gte=self.start_date,
+            )
+            if overlap.exists():
+                errors["start_date"] = "بازه این ترم با ترم دیگری هم‌پوشانی دارد."
 
         if errors:
             raise ValidationError(errors)
