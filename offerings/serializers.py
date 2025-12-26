@@ -12,6 +12,11 @@ from .services import (
 
 
 class SectionScheduleSerializer(serializers.ModelSerializer):
+    time_slot = serializers.ChoiceField(
+        choices=SectionSchedule.TIME_SLOT_CHOICES,
+        required=False,
+        write_only=True,
+    )
     classroom = serializers.PrimaryKeyRelatedField(
         queryset=Classroom.objects.all(),
         required=False,
@@ -20,7 +25,7 @@ class SectionScheduleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SectionSchedule
-        fields = ["id", "day_of_week", "start_time", "end_time", "classroom", "location"]
+        fields = ["id", "day_of_week", "time_slot", "start_time", "end_time", "classroom", "location"]
         read_only_fields = ["id"]
 
 
@@ -70,6 +75,12 @@ class SectionCreateSerializer(serializers.ModelSerializer):
         section = Section.objects.create(**validated_data)
 
         for sch_data in schedules_data:
+            time_slot = sch_data.pop("time_slot", None)
+            if time_slot:
+                start_time, end_time = SectionSchedule.SLOT_TO_TIMES[time_slot]
+                sch_data["start_time"] = start_time
+                sch_data["end_time"] = end_time
+
             if sch_data.get("classroom") and not sch_data.get("location"):
                 sch_data["location"] = str(sch_data["classroom"])
 
@@ -101,6 +112,12 @@ class SectionCreateSerializer(serializers.ModelSerializer):
         if schedules_data is not None:
             instance.schedules.all().delete()
             for sch_data in schedules_data:
+                time_slot = sch_data.pop("time_slot", None)
+                if time_slot:
+                    start_time, end_time = SectionSchedule.SLOT_TO_TIMES[time_slot]
+                    sch_data["start_time"] = start_time
+                    sch_data["end_time"] = end_time
+
                 if sch_data.get("classroom") and not sch_data.get("location"):
                     sch_data["location"] = str(sch_data["classroom"])
 
