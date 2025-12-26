@@ -37,6 +37,28 @@ class Section(models.Model):
     def __str__(self):
         return f"{self.term} - {self.course.code} ({self.section_number})"
 
+    def expected_sessions_per_week(self) -> int | None:
+        if not self.course_id:
+            return None
+        return 2 if self.course.units >= 3 else 1
+
+    def clean(self):
+        errors = {}
+
+        if self.course_id and self.professor_id and self.course.departments.exists():
+            course_department_ids = self.course.departments.values_list("id", flat=True)
+            if not self.professor.departments.filter(id__in=course_department_ids).exists():
+                errors["professor"] = "Professor must be a member of at least one course department."
+
+        expected = self.expected_sessions_per_week()
+        if expected is not None and self.pk:
+            schedules_count = self.schedules.count()
+            if schedules_count and schedules_count != expected:
+                errors["schedules"] = f"Course requires exactly {expected} session(s) per week."
+
+        if errors:
+            raise ValidationError(errors)
+
 
 class SectionSchedule(models.Model):
     class WeekDay(models.IntegerChoices):
@@ -63,8 +85,7 @@ class SectionSchedule(models.Model):
     ]
     SLOT_TO_TIMES = {code: (start, end) for code, start, end in TIME_SLOTS}
     START_TO_END = {start: end for _, start, end in TIME_SLOTS}
-    START_TIME_CHOICES = [(start, start.strftime("%H:%M")) for _, start, _ in TIME_SLOTS]
-    END_TIME_CHOICES = [(end, end.strftime("%H:%M")) for _, _, end in TIME_SLOTS]
+    TIMES_TO_SLOT = {(start, end): code for code, start, end in TIME_SLOTS}
 
     section = models.ForeignKey(
         Section,
@@ -74,8 +95,10 @@ class SectionSchedule(models.Model):
 
     day_of_week = models.IntegerField(choices=WeekDay.choices)
 
-    start_time = models.TimeField(choices=START_TIME_CHOICES)
-    end_time = models.TimeField(choices=END_TIME_CHOICES)
+    time_slot = models.CharField(
+        max_length=8,
+        choices=TIME_SLOT_CHOICES,
+    )
 
     classroom = models.ForeignKey(
         "departments.Classroom",
@@ -91,18 +114,9 @@ class SectionSchedule(models.Model):
     )
 
     class Meta:
-        ordering = ["section", "day_of_week", "start_time"]
+        ordering = ["section", "day_of_week", "time_slot"]
 
     def clean(self):
-        if self.start_time >= self.end_time:
-            raise ValidationError("Class start_time must be before end_time.")
-
-        expected_end = self.START_TO_END.get(self.start_time)
-        if not expected_end:
-            raise ValidationError({"start_time": "Start time must be one of the allowed time slots."})
-        if self.end_time != expected_end:
-            raise ValidationError({"end_time": "End time must match the selected 2-hour time slot."})
-
         if self.classroom and self.section_id and self.classroom.capacity < self.section.capacity:
             raise ValidationError("Classroom capacity cannot be less than section capacity.")
 

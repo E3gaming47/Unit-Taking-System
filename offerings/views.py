@@ -1,4 +1,5 @@
 from rest_framework import filters, permissions, viewsets
+from django.db.models import Q
 
 from api.pagination import StandardResultsSetPagination
 from terms.models import Term
@@ -47,6 +48,16 @@ class SectionViewSet(viewsets.ModelViewSet):
         department_id = request.query_params.get("department")
         professor_id = request.query_params.get("professor")
 
+        if request.user.role == "student":
+            student_department_id = request.user.department_id
+            if student_department_id:
+                qs = qs.filter(
+                    Q(course__departments__id=student_department_id)
+                    | Q(course__departments__isnull=True)
+                )
+            else:
+                qs = qs.filter(course__departments__isnull=True)
+
         if term_id:
             qs = qs.filter(term_id=term_id)
         else:
@@ -55,6 +66,8 @@ class SectionViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(term=active_term)
 
         if department_id:
+            if request.user.role == "student" and str(request.user.department_id) != str(department_id):
+                return qs.none()
             qs = qs.filter(course__departments__id=department_id)
 
         if professor_id:

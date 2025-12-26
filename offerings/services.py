@@ -35,8 +35,7 @@ def check_time_conflict(section: Section) -> None:
     for sch in schedules:
         overlapping = other_schedules.filter(
             day_of_week=sch.day_of_week,
-            start_time__lt=sch.end_time,
-            end_time__gt=sch.start_time,
+            time_slot=sch.time_slot,
         )
         if overlapping.exists():
             raise ValidationError(
