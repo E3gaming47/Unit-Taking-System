@@ -57,6 +57,14 @@ class SectionSchedule(models.Model):
     start_time = models.TimeField()
     end_time = models.TimeField()
 
+    classroom = models.ForeignKey(
+        "departments.Classroom",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="section_schedules",
+    )
+
     location = models.CharField(
         max_length=128,
         blank=True,
@@ -69,6 +77,9 @@ class SectionSchedule(models.Model):
         if self.start_time >= self.end_time:
             raise ValidationError("Class start_time must be before end_time.")
 
+        if self.classroom and self.section_id and self.classroom.capacity < self.section.capacity:
+            raise ValidationError("Classroom capacity cannot be less than section capacity.")
+
 
 class SectionExam(models.Model):
     section = models.OneToOneField(
@@ -78,6 +89,15 @@ class SectionExam(models.Model):
     )
 
     exam_datetime = models.DateTimeField()
+
+    classroom = models.ForeignKey(
+        "departments.Classroom",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="section_exams",
+    )
+
     location = models.CharField(
         max_length=128,
         blank=True,
@@ -86,3 +106,6 @@ class SectionExam(models.Model):
     class Meta:
         ordering = ["exam_datetime"]
 
+    def clean(self):
+        if self.classroom and self.section_id and self.classroom.capacity < self.section.capacity:
+            raise ValidationError("Classroom capacity cannot be less than section capacity.")
