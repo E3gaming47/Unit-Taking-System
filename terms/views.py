@@ -40,6 +40,12 @@ class TermViewSet(viewsets.ModelViewSet):
                 {"detail": "این ترم از قبل فعال است."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        today = date.today()
+        if not (term.start_date <= today <= term.end_date):
+            return Response(
+                {"detail": "فعال‌سازی ترم فقط داخل بازه ترم مجاز است."},
+                status=status.HTTP_400_BAD_REQUEST
+            )    
 
         Term.objects.filter(status=Term.TermStatus.ACTIVE).exclude(pk=term.pk).update(
             status=Term.TermStatus.READY,

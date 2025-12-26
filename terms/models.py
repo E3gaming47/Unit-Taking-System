@@ -98,7 +98,7 @@ class Term(models.Model):
             self.is_active = True
         else:
             self.is_active = False
-
+        
         self.full_clean()
         return super().save(*args, **kwargs)
 
