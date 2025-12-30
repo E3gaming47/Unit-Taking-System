@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from django.core.exceptions import ValidationError as DjangoValidationError
 from .models import Term
 
 
@@ -13,13 +12,14 @@ class TermSerializer(serializers.ModelSerializer):
             "end_date",
             "registration_start",
             "registration_end",
-            "status",
             "is_active",
             "min_units",
             "max_units",
+        
         ]
 
-    def validate(self, data):
+    def validate(self, data): #قبل از اینکه این JSON ذخیره شود، بررسی‌اش کن ببین منطقی هست یا نه
+       
         start_date = data.get("start_date")
         end_date = data.get("end_date")
         reg_start = data.get("registration_start")
@@ -29,18 +29,22 @@ class TermSerializer(serializers.ModelSerializer):
 
         errors = {}
 
+        # شروع ترم باید قبل از پایان ترم باشد
         if start_date and end_date and start_date >= end_date:
             errors["end_date"] = "پایان ترم باید بعد از شروع ترم باشد."
 
+        # بازه انتخاب واحد باید منطقی باشد
         if reg_start and reg_end and reg_start >= reg_end:
             errors["registration_end"] = "پایان انتخاب واحد باید بعد از شروع آن باشد."
 
+        # انتخاب واحد باید داخل بازه ترم باشد
         if start_date and reg_start and not (start_date <= reg_start <= end_date):
             errors["registration_start"] = "شروع انتخاب واحد باید داخل بازه ترم باشد."
 
         if start_date and reg_end and not (start_date <= reg_end <= end_date):
             errors["registration_end"] = "پایان انتخاب واحد باید داخل بازه ترم باشد."
 
+        # اعتبارسنجی حداقل و حداکثر واحد
         if min_units is not None and max_units is not None and min_units > max_units:
             errors["max_units"] = "حداکثر واحد باید بیشتر یا مساوی حداقل واحد باشد."
 
@@ -48,18 +52,3 @@ class TermSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
 
         return data
-
-    def create(self, validated_data):
-        try:
-            return Term.objects.create(**validated_data)
-        except DjangoValidationError as e:
-            raise serializers.ValidationError(getattr(e, "message_dict", {"detail": e.messages}))
-
-    def update(self, instance, validated_data):
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        try:
-            instance.save()
-        except DjangoValidationError as e:
-            raise serializers.ValidationError(getattr(e, "message_dict", {"detail": e.messages}))
-        return instance

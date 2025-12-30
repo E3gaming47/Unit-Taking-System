@@ -22,7 +22,12 @@ class Course(models.Model):
         blank=True,
         related_name="courses"
     )
-
+    prerequisites = models.ManyToManyField(
+        "self",
+        symmetrical=False,
+        blank=True,
+        related_name="is_prerequisite_of"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
