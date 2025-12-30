@@ -45,10 +45,12 @@ def check_time_conflict(section: Section) -> None:
 
 def check_exam_conflict(section: Section) -> None:
 
-    if not section.professor_id or not section.term_id or not hasattr(section, "exam"):
+    if not section.professor_id or not section.term_id:
         return
-
-    exam = section.exam
+    try:
+        exam = section.exam
+    except SectionExam.DoesNotExist:
+        return
 
     other_exams = SectionExam.objects.filter(
         section__professor_id=section.professor_id,

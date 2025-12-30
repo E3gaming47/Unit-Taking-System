@@ -51,8 +51,6 @@ class Section(models.Model):
                 errors["professor"] = "Professor must be a member of at least one course department."
 
         expected = self.expected_sessions_per_week()
-
-        expected = self.expected_sessions_per_week()
         if expected is not None and self.pk:
             schedules_count = self.schedules.count()
             if schedules_count and schedules_count != expected:

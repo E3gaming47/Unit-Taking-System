@@ -7,22 +7,14 @@ from .models import User
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, validators=[validate_password])
-    departments = serializers.SerializerMethodField()
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'role', 'student_id', 'professor_id', 'department', 'departments', 'password', 'first_name', 'last_name']
+        fields = ['id', 'username', 'email', 'role', 'student_id', 'professor_id', 'department', 'password', 'first_name', 'last_name']
         read_only_fields = ['id']
         extra_kwargs = {
             'username': {'required': True},
             'email': {'required': False},
         }
-
-    def get_departments(self, obj):
-
-        if obj.role == 'professor':
-            return [{'id': dept.id, 'name': dept.name, 'code': dept.code} for dept in obj.departments.all()]
-        return []
-
 
     def validate_username(self, value):
         
@@ -131,7 +123,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'role', 'student_id', 'professor_id', 'first_name', 'last_name']
+        fields = ['username', 'email', 'password', 'role', 'student_id', 'professor_id', 'department', 'first_name', 'last_name']
         extra_kwargs = {
             'username': {'required': True},
             'role': {'required': True},
@@ -162,7 +154,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
         student_id = data.get('student_id')
         professor_id = data.get('professor_id')
         department = data.get('department')
-        departments = data.get('departments', [])
 
         if role == 'student':
             if not student_id:
@@ -187,9 +178,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'student_id': 'Professor cannot have a student_id'
                 })
-            if not departments:
+            if not department:
                 raise serializers.ValidationError({
-                    'departments': 'Professor must belong to at least one department'
+                    'department': 'Professor must belong to a department'
                 })
     
         
@@ -202,21 +193,14 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'department': 'Admin cannot belong to any department'
                 })
-            if departments:
-                raise serializers.ValidationError({
-                    'departments': 'Admin cannot have departments'
-                })
                 
 
         return data
 
     def create(self, validated_data):
-        departments = validated_data.pop('departments', [])
         password = validated_data.pop('password')
         user = User.objects.create(**validated_data)
         user.set_password(password)
-        if user.role == 'professor' and departments:
-            user.departments.set(departments)
         user.save()
         return user
 

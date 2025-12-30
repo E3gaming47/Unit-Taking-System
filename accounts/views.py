@@ -6,7 +6,7 @@ from django.shortcuts import render, redirect
 
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -110,13 +110,17 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     permission_classes = [IsAuthenticated, IsAdmin]
     pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["username", "email", "first_name", "last_name", "student_id", "professor_id", "role"]
+    ordering_fields = ["username", "email", "first_name", "last_name", "id"]
+    ordering = ["username"]
     
     def get_serializer_class(self):
         
         if self.action == 'create':
             return UserCreateSerializer
         return UserSerializer
-
+    
     def get_queryset(self):
         
         queryset = User.objects.all()
