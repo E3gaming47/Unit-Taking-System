@@ -50,3 +50,34 @@ class Classroom(models.Model):
         if self.department_id:
             return f"{self.department.code} - {self.number}"
         return self.number
+
+
+class ExamHall(models.Model):
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="exam_halls",
+    )
+
+    name = models.CharField(max_length=100)
+    capacity = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["department", "name"],
+                name="unique_exam_hall_name_per_department",
+            )
+        ]
+
+    def clean(self):
+        if self.capacity <= 0:
+            raise ValidationError({"capacity": "Capacity must be a positive integer."})
+
+    def __str__(self):
+        if self.department_id:
+            return f"{self.department.code} - {self.name}"
+        return self.name        
