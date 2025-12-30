@@ -17,14 +17,9 @@ class User(AbstractUser):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name='students',
+        related_name='users', 
     )
 
-    departments = models.ManyToManyField(
-        'departments.Department',
-        blank=True,
-        related_name='professors',
-    )
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -38,9 +33,9 @@ class User(AbstractUser):
         
         if self.role == "student" and not self.department:
             raise ValidationError("Student must belong to a department")
-        if self.role == "professor" and not self.departments.exists():
-            raise ValidationError("Professor must belong to at least one department")
-        if self.role == "admin" and (self.department or self.departments.exists()):
+        if self.role == "professor" and not self.department:
+            raise ValidationError("Professor must belong to a department")
+        if self.role == "admin" and self.department:
             raise ValidationError("Admin cannot belong to any department")
         
     def __str__(self):
