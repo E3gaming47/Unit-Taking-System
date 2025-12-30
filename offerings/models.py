@@ -47,8 +47,10 @@ class Section(models.Model):
 
         if self.course_id and self.professor_id and self.course.departments.exists():
             course_department_ids = self.course.departments.values_list("id", flat=True)
-            if not self.professor.departments.filter(id__in=course_department_ids).exists():
+            if self.professor.department_id not in course_department_ids:
                 errors["professor"] = "Professor must be a member of at least one course department."
+
+        expected = self.expected_sessions_per_week()
 
         expected = self.expected_sessions_per_week()
         if expected is not None and self.pk:
@@ -137,6 +139,13 @@ class SectionExam(models.Model):
         blank=True,
         related_name="section_exams",
     )
+    exam_hall = models.ForeignKey(
+        "departments.ExamHall",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="section_exams",
+    )
 
     location = models.CharField(
         max_length=128,
@@ -149,3 +158,15 @@ class SectionExam(models.Model):
     def clean(self):
         if self.classroom and self.section_id and self.classroom.capacity < self.section.capacity:
             raise ValidationError("Classroom capacity cannot be less than section capacity.")
+        if self.classroom and self.exam_hall:
+            raise ValidationError("Choose either a Classroom or an Exam Hall, not both.")
+    
+        venue = self.classroom or self.exam_hall
+        
+        if venue and self.section_id and venue.capacity < self.section.capacity:
+            raise ValidationError("Venue capacity cannot be less than section capacity.")
+            
+        if venue and self.section_id:
+             course_dept_ids = self.section.course.departments.values_list('id', flat=True)
+             if venue.department_id and venue.department_id not in course_dept_ids:
+                 raise ValidationError("Exam venue must belong to one of the course departments.")        
