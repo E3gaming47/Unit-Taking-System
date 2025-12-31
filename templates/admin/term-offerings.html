@@ -202,7 +202,7 @@
                     
                     <template x-for="(schedule, index) in form.schedules" :key="index">
                         <div style="background: rgba(255, 255, 255, 0.2); padding: 15px; border-radius: var(--border-radius); margin-bottom: 15px;">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: start;">
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label>روز هفته</label>
                                     <select x-model="schedule.day_of_week">
@@ -216,16 +216,37 @@
                                     </select>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label>ساعت شروع</label>
-                                    <input type="time" x-model="schedule.start_time" required>
+                                    <label>بازه زمانی *</label>
+                                    <select x-model="schedule.time_slot" required>
+                                        <option value="">انتخاب بازه زمانی</option>
+                                        <template x-for="slot in (timeSlots || [])" :key="slot.code || slot">
+                                            <option :value="slot.code || slot" x-text="slot.display || slot.label || getTimeSlotLabel(slot.code || slot)"></option>
+                                        </template>
+                                    </select>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label>ساعت پایان</label>
-                                    <input type="time" x-model="schedule.end_time" required>
+                                    <label>کلاس (اختیاری)</label>
+                                    <select x-model="schedule.classroom" @change="onScheduleClassroomChange(index)">
+                                        <option value="">بدون کلاس</option>
+                                        <template x-for="classroom in (classrooms || [])" :key="classroom.id">
+                                            <option :value="classroom.id" x-text="classroom.number + ' (ظرفیت: ' + classroom.capacity + ')'"></option>
+                                        </template>
+                                    </select>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label>مکان (اختیاری)</label>
-                                    <input type="text" x-model="schedule.location" placeholder="مثال: کلاس 101">
+                                    <label>مکان <span x-show="!schedule.classroom">(اختیاری)</span></label>
+                                    <template x-if="schedule.classroom">
+                                        <input type="text" :value="getClassroomName ? getClassroomName(schedule.classroom) : ''" readonly style="background-color: #f0f0f0; cursor: not-allowed; width: 100%;">
+                                    </template>
+                                    <template x-if="!schedule.classroom">
+                                        <input type="text" x-model="schedule.location" placeholder="مثال: کلاس 101" style="width: 100%;">
+                                    </template>
+                                    <small style="color: var(--gray-color); font-size: 11px; display: block; margin-top: 4px;" x-show="schedule.classroom">
+                                        به صورت خودکار از کلاس انتخاب شده
+                                    </small>
+                                    <small style="color: var(--gray-color); font-size: 11px; display: block; margin-top: 4px;" x-show="!schedule.classroom">
+                                        فقط در صورت عدم انتخاب کلاس
+                                    </small>
                                 </div>
                                 <div>
                                     <button type="button" class="btn btn-danger" @click="removeSchedule(index)" style="padding: 6px 12px; font-size: 13px;" title="حذف برنامه">
@@ -261,14 +282,34 @@
                     
                     <template x-if="form.exam">
                         <div style="background: rgba(255, 255, 255, 0.2); padding: 15px; border-radius: var(--border-radius);">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label>تاریخ و زمان امتحان *</label>
                                     <input type="datetime-local" x-model="form.exam.exam_datetime" required>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label>مکان (اختیاری)</label>
-                                    <input type="text" x-model="form.exam.location" placeholder="مثال: سالن امتحانات">
+                                    <label>کلاس (اختیاری)</label>
+                                    <select x-model="form.exam.classroom" @change="onExamClassroomChange()">
+                                        <option value="">بدون کلاس</option>
+                                        <template x-for="classroom in (classrooms || [])" :key="classroom.id">
+                                            <option :value="classroom.id" x-text="classroom.number + ' (ظرفیت: ' + classroom.capacity + ')'"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label>مکان <span x-show="!form.exam.classroom">(اختیاری)</span></label>
+                                    <template x-if="form.exam.classroom">
+                                        <input type="text" :value="getClassroomName ? getClassroomName(form.exam.classroom) : ''" readonly style="background-color: #f0f0f0; cursor: not-allowed; width: 100%;">
+                                    </template>
+                                    <template x-if="!form.exam.classroom">
+                                        <input type="text" x-model="form.exam.location" placeholder="مثال: سالن امتحانات" style="width: 100%;">
+                                    </template>
+                                    <small style="color: var(--gray-color); font-size: 11px; display: block; margin-top: 4px;" x-show="form.exam.classroom">
+                                        به صورت خودکار از کلاس انتخاب شده
+                                    </small>
+                                    <small style="color: var(--gray-color); font-size: 11px; display: block; margin-top: 4px;" x-show="!form.exam.classroom">
+                                        فقط در صورت عدم انتخاب کلاس
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -287,8 +328,10 @@
 <style>
     [x-cloak] { display: none !important; }
 </style>
+{% endblock %}
 
-<script src="/static/js/term-offerings.js"></script>
+{% block page_scripts %}
+<script src="/static/js/term-offerings.js?v=2"></script>
 {% endblock %}
 
 

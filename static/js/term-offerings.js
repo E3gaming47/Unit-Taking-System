@@ -6,6 +6,8 @@ function termOfferingsManager() {
         courses: [],
         departments: [],
         professors: [],
+        classrooms: [],
+        timeSlots: [],
         loading: false,
         error: '',
         success: '',
@@ -31,7 +33,9 @@ function termOfferingsManager() {
                 this.loadTerms(),
                 this.loadCourses(),
                 this.loadDepartments(),
-                this.loadProfessors()
+                this.loadProfessors(),
+                this.loadClassrooms(),
+                this.loadTimeSlots()
             ]);
         },
 
@@ -93,6 +97,37 @@ function termOfferingsManager() {
             }
         },
 
+        async loadClassrooms() {
+            try {
+                const rooms = await API.getClassrooms();
+                this.classrooms = Array.isArray(rooms) ? rooms : [];
+                console.log('Loaded classrooms:', this.classrooms);
+            } catch (err) {
+                console.error('Error loading classrooms:', err);
+                this.classrooms = [];
+            }
+        },
+
+        async loadTimeSlots() {
+            try {
+                const slots = await API.getTimeSlots();
+                // Backend returns array of objects: [{code: "08_10", label: "08:00-10:00", ...}, ...]
+                // Map to format expected by template
+                if (Array.isArray(slots)) {
+                    this.timeSlots = slots.map(slot => ({
+                        code: slot.code || slot,
+                        display: slot.label || slot.display || this.getTimeSlotLabel(slot.code || slot)
+                    }));
+                } else {
+                    this.timeSlots = [];
+                }
+                console.log('Loaded time slots:', this.timeSlots);
+            } catch (err) {
+                console.error('Error loading time slots:', err);
+                this.timeSlots = [];
+            }
+        },
+
         applyFilters() {
             this.loadSections();
         },
@@ -117,7 +152,23 @@ function termOfferingsManager() {
             };
             this.error = '';
             this.success = '';
+            // Ensure classrooms and time slots are loaded
+            if (!this.classrooms || this.classrooms.length === 0) {
+                this.loadClassrooms();
+            }
+            if (!this.timeSlots || this.timeSlots.length === 0) {
+                this.loadTimeSlots();
+            }
             this.showModal = true;
+        },
+
+        onCourseChange() {
+            // When course changes, filter professors by course's departments
+            // This is optional - can be implemented later if needed
+            // For now, just ensure form is valid
+            if (this.form.course) {
+                // Could filter professors here based on course departments
+            }
         },
 
         async openEditModal(section) {
@@ -162,17 +213,32 @@ function termOfferingsManager() {
                     professor: professorId,
                     section_number: section.section_number || 1,
                     capacity: section.capacity || 1,
-                    schedules: (schedules || []).map(s => ({
-                        day_of_week: s.day_of_week || 0,
-                        start_time: s.start_time || '',
-                        end_time: s.end_time || '',
-                        location: s.location || ''
-                    })),
+                    schedules: (schedules || []).map(s => {
+                        const scheduleData = {
+                            day_of_week: s.day_of_week || 0,
+                            time_slot: s.time_slot || '',
+                            location: s.location || ''
+                        };
+                        // Handle classroom - backend returns ID as integer
+                        if (s.classroom) {
+                            scheduleData.classroom = typeof s.classroom === 'object' ? s.classroom.id : parseInt(s.classroom);
+                        }
+                        return scheduleData;
+                    }),
                     exam: exam ? {
                         exam_datetime: examDatetime,
-                        location: exam.location || ''
+                        location: exam.location || '',
+                        ...(exam.classroom && { classroom: typeof exam.classroom === 'object' ? exam.classroom.id : parseInt(exam.classroom) })
                     } : null
                 };
+                
+                // Ensure classrooms and time slots are loaded for editing
+                if (!this.classrooms || this.classrooms.length === 0) {
+                    await this.loadClassrooms();
+                }
+                if (!this.timeSlots || this.timeSlots.length === 0) {
+                    await this.loadTimeSlots();
+                }
             } catch (err) {
                 console.error('Error opening edit modal:', err);
                 this.error = 'خطا در بارگذاری اطلاعات ارائه';
@@ -202,10 +268,25 @@ function termOfferingsManager() {
         addSchedule() {
             this.form.schedules.push({
                 day_of_week: 0,
-                start_time: '',
-                end_time: '',
+                time_slot: '',
+                classroom: '',
                 location: ''
             });
+        },
+
+        // Auto-fill location from classroom
+        onScheduleClassroomChange(index) {
+            const schedule = this.form.schedules[index];
+            if (schedule.classroom) {
+                const classroom = this.classrooms.find(c => c.id === parseInt(schedule.classroom));
+                if (classroom) {
+                    // Always auto-fill location from classroom
+                    schedule.location = classroom.number;
+                }
+            } else {
+                // Clear location if classroom is removed
+                schedule.location = '';
+            }
         },
 
         removeSchedule(index) {
@@ -234,14 +315,45 @@ function termOfferingsManager() {
             if (!schedule) return 'نامشخص';
             try {
                 const day = this.getDayName(schedule.day_of_week);
-                const start = this.formatTime(schedule.start_time);
-                const end = this.formatTime(schedule.end_time);
+                // Use time_slot if available, otherwise fallback to start_time/end_time
+                let timeText = '';
+                if (schedule.time_slot) {
+                    // Format time_slot like "08_10" to "08:00-10:00"
+                    const parts = schedule.time_slot.split('_');
+                    if (parts.length === 2) {
+                        timeText = `${parts[0]}:00-${parts[1]}:00`;
+                    } else {
+                        timeText = schedule.time_slot;
+                    }
+                } else if (schedule.start_time && schedule.end_time) {
+                    const start = this.formatTime(schedule.start_time);
+                    const end = this.formatTime(schedule.end_time);
+                    timeText = `${start}-${end}`;
+                } else {
+                    timeText = 'نامشخص';
+                }
                 const location = schedule.location ? ` - ${schedule.location}` : '';
-                return `${day} ${start}-${end}${location}`;
+                return `${day} ${timeText}${location}`;
             } catch (err) {
                 console.error('Error formatting schedule:', err);
                 return 'خطا در نمایش اطلاعات';
             }
+        },
+
+        getTimeSlotLabel(timeSlot) {
+            if (!timeSlot) return '';
+            // Format "08_10" to "08:00-10:00"
+            const parts = timeSlot.split('_');
+            if (parts.length === 2) {
+                return `${parts[0]}:00-${parts[1]}:00`;
+            }
+            return timeSlot;
+        },
+
+        getClassroomName(classroomId) {
+            if (!classroomId) return '';
+            const classroom = this.classrooms.find(c => c.id === parseInt(classroomId));
+            return classroom ? classroom.number : '';
         },
 
         // Exam management
@@ -249,8 +361,23 @@ function termOfferingsManager() {
             if (!this.form.exam) {
                 this.form.exam = {
                     exam_datetime: '',
+                    classroom: '',
                     location: ''
                 };
+            }
+        },
+
+        // Auto-fill location from exam classroom
+        onExamClassroomChange() {
+            if (this.form.exam && this.form.exam.classroom) {
+                const classroom = this.classrooms.find(c => c.id === parseInt(this.form.exam.classroom));
+                if (classroom) {
+                    // Always auto-fill location from classroom
+                    this.form.exam.location = classroom.number;
+                }
+            } else if (this.form.exam) {
+                // Clear location if classroom is removed
+                this.form.exam.location = '';
             }
         },
 
@@ -301,14 +428,52 @@ function termOfferingsManager() {
                 return;
             }
 
+            // Validate schedules
+            if (this.form.schedules && this.form.schedules.length > 0) {
+                for (let i = 0; i < this.form.schedules.length; i++) {
+                    const s = this.form.schedules[i];
+                    if (!s.time_slot || !s.time_slot.trim()) {
+                        this.error = `برنامه شماره ${i + 1}: لطفاً بازه زمانی را انتخاب کنید`;
+                        return;
+                    }
+                }
+            }
+
             try {
                 // Prepare schedules - ensure array exists
-                const schedules = (this.form.schedules || []).map(s => ({
-                    day_of_week: parseInt(s.day_of_week) || 0,
-                    start_time: s.start_time || '',
-                    end_time: s.end_time || '',
-                    location: s.location || ''
-                }));
+                const schedules = (this.form.schedules || []).map(s => {
+                    if (!s.time_slot || !s.time_slot.trim()) {
+                        throw new Error('بازه زمانی برای همه برنامه‌ها الزامی است');
+                    }
+                    
+                    const scheduleData = {
+                        day_of_week: parseInt(s.day_of_week) || 0,
+                        time_slot: s.time_slot.trim()
+                    };
+                    
+                    // Handle classroom - only include if selected
+                    if (s.classroom && s.classroom !== '' && s.classroom !== null) {
+                        const classroomId = parseInt(s.classroom);
+                        if (!isNaN(classroomId) && classroomId > 0) {
+                            scheduleData.classroom = classroomId;
+                            // Auto-fill location from classroom if location is empty
+                            if (!s.location || !s.location.trim()) {
+                                const classroom = this.classrooms.find(c => c.id === classroomId);
+                                if (classroom) {
+                                    scheduleData.location = classroom.number;
+                                }
+                            } else {
+                                scheduleData.location = s.location.trim();
+                            }
+                        } else if (s.location && s.location.trim()) {
+                            scheduleData.location = s.location.trim();
+                        }
+                    } else if (s.location && s.location.trim()) {
+                        scheduleData.location = s.location.trim();
+                    }
+                    
+                    return scheduleData;
+                });
 
                 // Prepare exam - convert datetime-local to ISO format
                 let exam = null;
@@ -316,17 +481,46 @@ function termOfferingsManager() {
                     try {
                         // Convert datetime-local format to ISO string
                         const datetimeStr = String(this.form.exam.exam_datetime);
-                        // datetime-local format is "YYYY-MM-DDTHH:mm", need to add seconds
-                        const isoDatetime = datetimeStr.includes('T') 
-                            ? `${datetimeStr}:00` 
-                            : datetimeStr;
+                        if (!datetimeStr || !datetimeStr.trim()) {
+                            this.error = 'لطفاً تاریخ و زمان امتحان را وارد کنید';
+                            return;
+                        }
+                        // datetime-local format is "YYYY-MM-DDTHH:mm", need to add seconds and timezone
+                        let isoDatetime = datetimeStr.trim();
+                        if (isoDatetime.includes('T')) {
+                            // Add seconds if not present
+                            if (isoDatetime.split(':').length === 2) {
+                                isoDatetime = `${isoDatetime}:00`;
+                            }
+                        }
                         exam = {
-                            exam_datetime: isoDatetime,
-                            location: this.form.exam.location || ''
+                            exam_datetime: isoDatetime
                         };
+                        
+                        // Handle classroom - only include if selected
+                        if (this.form.exam.classroom && this.form.exam.classroom !== '' && this.form.exam.classroom !== null) {
+                            const classroomId = parseInt(this.form.exam.classroom);
+                            if (!isNaN(classroomId) && classroomId > 0) {
+                                exam.classroom = classroomId;
+                                // Auto-fill location from classroom if location is empty
+                                if (!this.form.exam.location || !this.form.exam.location.trim()) {
+                                    const classroom = this.classrooms.find(c => c.id === classroomId);
+                                    if (classroom) {
+                                        exam.location = classroom.number;
+                                    }
+                                } else {
+                                    exam.location = this.form.exam.location.trim();
+                                }
+                            } else if (this.form.exam.location && this.form.exam.location.trim()) {
+                                exam.location = this.form.exam.location.trim();
+                            }
+                        } else if (this.form.exam.location && this.form.exam.location.trim()) {
+                            exam.location = this.form.exam.location.trim();
+                        }
                     } catch (err) {
                         console.error('Error preparing exam data:', err);
-                        exam = null;
+                        this.error = 'خطا در فرمت تاریخ و زمان امتحان';
+                        return;
                     }
                 }
 
