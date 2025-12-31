@@ -26,7 +26,15 @@ function termsManager() {
             this.loading = true;
             this.error = '';
             try {
-                this.terms = await API.getTerms();
+                const termsData = await API.getTerms();
+                // Add computed properties for status display
+                this.terms = termsData.map(term => ({
+                    ...term,
+                    statusLabel: this.getStatusLabel(term.status || 'planning'),
+                    statusStyle: this.getStatusStyle(term.status || 'planning')
+                }));
+                // Debug: log terms to check status field
+                console.log('Loaded terms:', this.terms);
             } catch (err) {
                 this.error = err.message || 'خطا در بارگذاری ترم‌ها';
             } finally {
@@ -53,6 +61,8 @@ function termsManager() {
 
         openEditModal(term) {
             this.editingId = term.id;
+            // Log term to debug
+            console.log('Editing term:', term);
             this.form = {
                 name: term.name,
                 start_date: term.start_date,
@@ -188,23 +198,31 @@ function termsManager() {
         },
 
         getStatusLabel(status) {
+            // Handle null/undefined status - default to planning
+            if (!status) {
+                return 'در حال برنامه‌ریزی';
+            }
             const labels = {
                 'planning': 'در حال برنامه‌ریزی',
                 'ready': 'آماده',
                 'active': 'فعال',
                 'archived': 'بایگانی شده'
             };
-            return labels[status] || status;
+            return labels[status] || status || 'در حال برنامه‌ریزی';
         },
 
         getStatusStyle(status) {
-            const styles = {
-                'planning': 'color: var(--gray-color);',
-                'ready': 'color: var(--primary-color); font-weight: bold;',
-                'active': 'color: var(--success); font-weight: bold;',
-                'archived': 'color: var(--gray-color);'
+            // Handle null/undefined status - default to planning
+            if (!status) {
+                status = 'planning';
+            }
+            const styleMap = {
+                'planning': { color: 'var(--gray-color)' },
+                'ready': { color: 'var(--primary-color)', fontWeight: 'bold' },
+                'active': { color: 'var(--success)', fontWeight: 'bold' },
+                'archived': { color: 'var(--gray-color)' }
             };
-            return styles[status] || '';
+            return styleMap[status] || styleMap['planning'] || {};
         },
 
         async setStatusReady(id) {
