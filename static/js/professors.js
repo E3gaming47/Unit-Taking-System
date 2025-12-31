@@ -2,6 +2,7 @@
 function professorsManager() {
     return {
         professors: [],
+        departments: [],
         loading: false,
         error: '',
         success: '',
@@ -14,11 +15,30 @@ function professorsManager() {
             password: '',
             first_name: '',
             last_name: '',
-            professor_id: ''
+            professor_id: '',
+            department: ''
         },
 
         async init() {
-            await this.loadProfessors();
+            await Promise.all([
+                this.loadDepartments(),
+                this.loadProfessors()
+            ]);
+        },
+
+        async loadDepartments() {
+            try {
+                this.departments = await API.getDepartments();
+            } catch (err) {
+                console.error('Error loading departments:', err);
+                this.departments = [];
+            }
+        },
+
+        getDepartmentName(departmentId) {
+            if (!departmentId) return '-';
+            const dept = this.departments.find(d => d.id === departmentId);
+            return dept ? `${dept.code} - ${dept.name}` : '-';
         },
 
         async loadProfessors() {
@@ -59,7 +79,8 @@ function professorsManager() {
                 password: '',
                 first_name: '',
                 last_name: '',
-                professor_id: ''
+                professor_id: '',
+                department: ''
             };
             this.error = '';
             this.success = '';
@@ -74,7 +95,8 @@ function professorsManager() {
                 password: '', // Don't pre-fill password
                 first_name: professor.first_name || '',
                 last_name: professor.last_name || '',
-                professor_id: professor.professor_id || ''
+                professor_id: professor.professor_id || '',
+                department: professor.department || ''
             };
             this.error = '';
             this.success = '';
@@ -90,7 +112,8 @@ function professorsManager() {
                 password: '',
                 first_name: '',
                 last_name: '',
-                professor_id: ''
+                professor_id: '',
+                department: ''
             };
             this.error = '';
         },
@@ -101,6 +124,11 @@ function professorsManager() {
 
             if (!this.form.username || !this.form.professor_id) {
                 this.error = 'لطفاً نام کاربری و شماره استادی را پر کنید';
+                return;
+            }
+
+            if (!this.form.department) {
+                this.error = 'لطفاً دپارتمان را انتخاب کنید';
                 return;
             }
 
@@ -117,7 +145,8 @@ function professorsManager() {
                     role: 'professor',
                     professor_id: this.form.professor_id,
                     first_name: this.form.first_name || '',
-                    last_name: this.form.last_name || ''
+                    last_name: this.form.last_name || '',
+                    department: parseInt(this.form.department)
                 };
 
                 // Only include password if provided (for new users or password updates)

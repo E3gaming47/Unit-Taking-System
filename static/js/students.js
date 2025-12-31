@@ -2,6 +2,7 @@
 function studentsManager() {
     return {
         students: [],
+        departments: [],
         loading: false,
         error: '',
         success: '',
@@ -14,11 +15,30 @@ function studentsManager() {
             password: '',
             first_name: '',
             last_name: '',
-            student_id: ''
+            student_id: '',
+            department: ''
         },
 
         async init() {
-            await this.loadStudents();
+            await Promise.all([
+                this.loadDepartments(),
+                this.loadStudents()
+            ]);
+        },
+
+        async loadDepartments() {
+            try {
+                this.departments = await API.getDepartments();
+            } catch (err) {
+                console.error('Error loading departments:', err);
+                this.departments = [];
+            }
+        },
+
+        getDepartmentName(departmentId) {
+            if (!departmentId) return '-';
+            const dept = this.departments.find(d => d.id === departmentId);
+            return dept ? `${dept.code} - ${dept.name}` : '-';
         },
 
         async loadStudents() {
@@ -59,7 +79,8 @@ function studentsManager() {
                 password: '',
                 first_name: '',
                 last_name: '',
-                student_id: ''
+                student_id: '',
+                department: ''
             };
             this.error = '';
             this.success = '';
@@ -74,7 +95,8 @@ function studentsManager() {
                 password: '', // Don't pre-fill password
                 first_name: student.first_name || '',
                 last_name: student.last_name || '',
-                student_id: student.student_id || ''
+                student_id: student.student_id || '',
+                department: student.department || ''
             };
             this.error = '';
             this.success = '';
@@ -90,7 +112,8 @@ function studentsManager() {
                 password: '',
                 first_name: '',
                 last_name: '',
-                student_id: ''
+                student_id: '',
+                department: ''
             };
             this.error = '';
         },
@@ -101,6 +124,11 @@ function studentsManager() {
 
             if (!this.form.username || !this.form.student_id) {
                 this.error = 'لطفاً نام کاربری و شماره دانشجویی را پر کنید';
+                return;
+            }
+
+            if (!this.form.department) {
+                this.error = 'لطفاً دپارتمان را انتخاب کنید';
                 return;
             }
 
@@ -117,7 +145,8 @@ function studentsManager() {
                     role: 'student',
                     student_id: this.form.student_id,
                     first_name: this.form.first_name || '',
-                    last_name: this.form.last_name || ''
+                    last_name: this.form.last_name || '',
+                    department: parseInt(this.form.department)
                 };
 
                 // Only include password if provided (for new users or password updates)
