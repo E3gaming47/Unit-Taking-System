@@ -28,9 +28,13 @@ function professorsManager() {
 
         async loadDepartments() {
             try {
-                this.departments = await API.getDepartments();
+                const data = await API.getDepartments();
+                // Handle paginated response
+                this.departments = data.results || data;
+                console.log('Loaded departments:', this.departments);
             } catch (err) {
                 console.error('Error loading departments:', err);
+                this.departments = [];
             }
         },
 

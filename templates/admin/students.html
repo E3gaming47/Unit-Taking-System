@@ -123,6 +123,9 @@
                             <option :value="dept.id" x-text="dept.name + ' (' + dept.code + ')'"></option>
                         </template>
                     </select>
+                    <div x-show="departments.length === 0" style="color: var(--gray-color); font-size: 12px; margin-top: 5px;" x-cloak>
+                        هیچ دپارتمانی یافت نشد
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>نام</label>
@@ -162,6 +165,9 @@
     [x-cloak] { display: none !important; }
 </style>
 
-<script src="/static/js/students.js"></script>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="/static/js/students.js?v=2"></script>
 {% endblock %}
 

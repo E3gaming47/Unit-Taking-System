@@ -243,7 +243,7 @@ const API = {
         if (params.search) queryParams.append('search', params.search);
         if (params.ordering) queryParams.append('ordering', params.ordering);
         
-        const url = `${this.baseURL}/departments/departments/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        const url = `${this.baseURL}/departments/departments${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
         const response = await this.request(url, { method: 'GET' });
         const data = await this.handleResponse(response);
         

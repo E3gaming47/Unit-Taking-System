@@ -28,9 +28,15 @@ function studentsManager() {
 
         async loadDepartments() {
             try {
-                this.departments = await API.getDepartments();
+                const data = await API.getDepartments();
+                // Handle paginated response - API.getDepartments already returns results array
+                const depts = Array.isArray(data) ? data : (data.results || []);
+                // Force reactivity by reassigning
+                this.departments = [...depts];
+                console.log('Loaded departments:', this.departments);
             } catch (err) {
                 console.error('Error loading departments:', err);
+                this.departments = [];
             }
         },
 
@@ -186,5 +192,10 @@ function studentsManager() {
             return dept ? `${dept.name} (${dept.code})` : '-';
         }
     }
+}
+
+// Make sure the function is available globally for Alpine.js
+if (typeof window !== 'undefined') {
+    window.studentsManager = studentsManager;
 }
 
