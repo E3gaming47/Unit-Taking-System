@@ -7,6 +7,8 @@ function termsManager() {
         success: '',
         showModal: false,
         editingId: null,
+        orderBy: 'start_date', // Default ordering field
+        orderDirection: 'desc', // 'asc' or 'desc' (default desc to show newest first)
         form: {
             name: '',
             start_date: '',
@@ -26,20 +28,42 @@ function termsManager() {
             this.loading = true;
             this.error = '';
             try {
-                const termsData = await API.getTerms();
+                const params = {};
+                
+                // Add ordering parameter
+                if (this.orderBy) {
+                    const prefix = this.orderDirection === 'desc' ? '-' : '';
+                    params.ordering = `${prefix}${this.orderBy}`;
+                }
+                
+                const termsData = await API.getTerms(params);
                 // Add computed properties for status display
-                this.terms = termsData.map(term => ({
-                    ...term,
-                    statusLabel: this.getStatusLabel(term.status || 'planning'),
-                    statusStyle: this.getStatusStyle(term.status || 'planning')
-                }));
-                // Debug: log terms to check status field
-                console.log('Loaded terms:', this.terms);
+                this.terms = termsData.map(term => {
+                    const status = term.status || 'planning';
+                    return {
+                        ...term,
+                        statusLabel: this.getStatusLabel(status),
+                        statusStyle: this.getStatusStyle(status)
+                    };
+                });
             } catch (err) {
                 this.error = err.message || 'خطا در بارگذاری ترم‌ها';
             } finally {
                 this.loading = false;
             }
+        },
+
+        // Change ordering
+        changeOrdering(field) {
+            if (this.orderBy === field) {
+                // Toggle direction if same field
+                this.orderDirection = this.orderDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                // New field, default to descending for dates, ascending for status
+                this.orderBy = field;
+                this.orderDirection = field === 'start_date' ? 'desc' : 'asc';
+            }
+            this.loadTerms();
         },
 
         openAddModal() {
@@ -217,12 +241,12 @@ function termsManager() {
                 status = 'planning';
             }
             const styleMap = {
-                'planning': { color: 'var(--gray-color)' },
-                'ready': { color: 'var(--primary-color)', fontWeight: 'bold' },
-                'active': { color: 'var(--success)', fontWeight: 'bold' },
-                'archived': { color: 'var(--gray-color)' }
+                'planning': 'color: var(--gray-color);',
+                'ready': 'color: var(--primary-color); font-weight: bold;',
+                'active': 'color: var(--success); font-weight: bold;',
+                'archived': 'color: var(--gray-color);'
             };
-            return styleMap[status] || styleMap['planning'] || {};
+            return styleMap[status] || styleMap['planning'] || '';
         },
 
         async setStatusReady(id) {
