@@ -307,7 +307,7 @@ const API = {
         if (params.page) queryParams.append('page', params.page);
         if (params.page_size) queryParams.append('page_size', params.page_size);
         
-        const url = `${this.baseURL}/departments/classrooms/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        const url = `${this.baseURL}/departments/classrooms${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
         const response = await this.request(url, { method: 'GET' });
         const data = await this.handleResponse(response);
         
