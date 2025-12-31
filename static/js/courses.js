@@ -18,6 +18,8 @@ function coursesManager() {
         newPrerequisiteCourse: '',
         loadingPrerequisites: false,
         availablePrerequisiteCourses: [],
+        prerequisiteSearchText: '',
+        activeTab: 'details', // 'details' or 'prerequisites'
         form: {
             code: '',
             title: '',
@@ -143,6 +145,8 @@ function coursesManager() {
             this.coursePrerequisites = [];
             this.newPrerequisiteCourse = '';
             this.availablePrerequisiteCourses = [];
+            this.prerequisiteSearchText = '';
+            this.activeTab = 'details';
             this.error = '';
             this.success = '';
             this.showModal = true;
@@ -163,6 +167,8 @@ function coursesManager() {
             this.coursePrerequisites = [];
             this.newPrerequisiteCourse = '';
             this.availablePrerequisiteCourses = [];
+            this.prerequisiteSearchText = '';
+            this.activeTab = 'details';
             
             // Ensure all courses are loaded first
             if (!this.allCourses || this.allCourses.length === 0) {
@@ -176,6 +182,11 @@ function coursesManager() {
             this.updateAvailablePrerequisiteCourses();
             
             this.showModal = true;
+            
+            // If switching to prerequisites tab, ensure search is ready
+            if (this.activeTab === 'prerequisites') {
+                this.filterPrerequisiteCourses();
+            }
         },
 
         closeModal() {
@@ -185,6 +196,8 @@ function coursesManager() {
             this.coursePrerequisites = [];
             this.newPrerequisiteCourse = '';
             this.availablePrerequisiteCourses = [];
+            this.prerequisiteSearchText = '';
+            this.activeTab = 'details';
             this.error = '';
         },
 
@@ -341,6 +354,7 @@ function coursesManager() {
                 this.success = 'پیش‌نیاز با موفقیت اضافه شد';
                 this.error = '';
                 this.newPrerequisiteCourse = '';
+                this.prerequisiteSearchText = ''; // Clear search after adding
                 // Reload prerequisites (this will also update available courses)
                 await this.loadCoursePrerequisites(courseId);
                 setTimeout(() => {
@@ -348,7 +362,19 @@ function coursesManager() {
                 }, 3000);
             } catch (err) {
                 console.error('Error adding prerequisite:', err);
-                this.error = err.message || 'خطا در اضافه کردن پیش‌نیاز';
+                // Better error message handling for validation errors
+                let errorMsg = err.message || 'خطا در اضافه کردن پیش‌نیاز';
+                
+                // Check for common validation errors
+                if (errorMsg.includes('circular') || errorMsg.includes('حلقه')) {
+                    errorMsg = 'خطا: ایجاد حلقه در پیش‌نیازها امکان‌پذیر نیست. این درس به صورت مستقیم یا غیرمستقیم پیش‌نیاز خودش است.';
+                } else if (errorMsg.includes('self') || errorMsg.includes('خود')) {
+                    errorMsg = 'خطا: یک درس نمی‌تواند پیش‌نیاز خودش باشد.';
+                } else if (errorMsg.includes('already') || errorMsg.includes('قبلاً')) {
+                    errorMsg = 'این پیش‌نیاز قبلاً اضافه شده است.';
+                }
+                
+                this.error = errorMsg;
                 this.success = '';
             }
         },
@@ -416,9 +442,18 @@ function coursesManager() {
                 return;
             }
             
-            // If no editingId (adding new course), show all courses
+            // If no editingId (adding new course), show all courses (with search filter)
             if (!this.editingId) {
-                this.availablePrerequisiteCourses = sourceCourses;
+                if (this.prerequisiteSearchText && this.prerequisiteSearchText.trim()) {
+                    const searchLower = this.prerequisiteSearchText.toLowerCase().trim();
+                    this.availablePrerequisiteCourses = sourceCourses.filter(c => {
+                        const code = (c.code || '').toLowerCase();
+                        const title = (c.title || '').toLowerCase();
+                        return code.includes(searchLower) || title.includes(searchLower);
+                    });
+                } else {
+                    this.availablePrerequisiteCourses = sourceCourses;
+                }
                 return;
             }
             
@@ -438,13 +473,31 @@ function coursesManager() {
                 .filter(id => !isNaN(id) && id > 0);
             
             // Filter: exclude current course and already-added prerequisites
-            this.availablePrerequisiteCourses = sourceCourses.filter(c => {
+            let filtered = sourceCourses.filter(c => {
                 const courseId = parseInt(c.id);
                 return !isNaN(courseId) 
                     && courseId > 0
                     && courseId !== currentCourseId 
                     && !existingPrereqIds.includes(courseId);
             });
+            
+            // Apply search filter if there's search text
+            if (this.prerequisiteSearchText && this.prerequisiteSearchText.trim()) {
+                const searchLower = this.prerequisiteSearchText.toLowerCase().trim();
+                filtered = filtered.filter(c => {
+                    const code = (c.code || '').toLowerCase();
+                    const title = (c.title || '').toLowerCase();
+                    return code.includes(searchLower) || title.includes(searchLower);
+                });
+            }
+            
+            // Force reactivity by creating a new array
+            this.availablePrerequisiteCourses = [...filtered];
+        },
+
+        // Filter prerequisites by search text
+        filterPrerequisiteCourses() {
+            this.updateAvailablePrerequisiteCourses();
         }
     }
 }

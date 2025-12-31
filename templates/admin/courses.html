@@ -137,37 +137,62 @@
             <div x-show="error" x-cloak class="alert alert-error" x-text="error" style="margin-bottom: 20px;"></div>
             <div x-show="success" x-cloak class="alert alert-success" x-text="success" style="margin-bottom: 20px;"></div>
 
+            <!-- Tabs (only show when editing) -->
+            <template x-if="editingId">
+                <div class="tabs" style="margin-bottom: 20px; border-bottom: 2px solid var(--light-gray);">
+                    <button 
+                        type="button"
+                        @click="activeTab = 'details'"
+                        :class="activeTab === 'details' ? 'tab-active' : 'tab-inactive'"
+                        class="tab-button"
+                    >
+                        جزئیات درس
+                    </button>
+                    <button 
+                        type="button"
+                        @click="activeTab = 'prerequisites'; filterPrerequisiteCourses();"
+                        :class="activeTab === 'prerequisites' ? 'tab-active' : 'tab-inactive'"
+                        class="tab-button"
+                    >
+                        پیش‌نیازها
+                    </button>
+                </div>
+            </template>
+
             <form @submit.prevent="submitForm()">
-                <div class="form-group">
-                    <label>کد درس *</label>
-                    <input type="text" x-model="form.code" required>
-                </div>
-                <div class="form-group">
-                    <label>نام درس *</label>
-                    <input type="text" x-model="form.title" required>
-                </div>
-                <div class="form-group">
-                    <label>تعداد واحد *</label>
-                    <select x-model="form.units" required>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>دپارتمان‌ها (اختیاری)</label>
-                    <select x-model="form.departments" multiple style="min-height: 100px;">
-                        <template x-for="dept in departments" :key="dept.id">
-                            <option :value="dept.id" x-text="dept.name + ' (' + dept.code + ')'"></option>
-                        </template>
-                    </select>
-                    <div class="help-text">برای انتخاب چند دپارتمان، کلید Ctrl را نگه دارید</div>
+                <!-- Details Tab -->
+                <div x-show="!editingId || activeTab === 'details'">
+                    <div class="form-group">
+                        <label>کد درس *</label>
+                        <input type="text" x-model="form.code" required>
+                    </div>
+                    <div class="form-group">
+                        <label>نام درس *</label>
+                        <input type="text" x-model="form.title" required>
+                    </div>
+                    <div class="form-group">
+                        <label>تعداد واحد *</label>
+                        <select x-model="form.units" required>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>دپارتمان‌ها (اختیاری)</label>
+                        <select x-model="form.departments" multiple style="min-height: 100px;">
+                            <template x-for="dept in departments" :key="dept.id">
+                                <option :value="dept.id" x-text="dept.name + ' (' + dept.code + ')'"></option>
+                            </template>
+                        </select>
+                        <div class="help-text">برای انتخاب چند دپارتمان، کلید Ctrl را نگه دارید</div>
+                    </div>
                 </div>
 
-                <!-- Prerequisites Section (only show when editing) -->
-                <template x-if="editingId">
-                    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid var(--light-gray);">
+                <!-- Prerequisites Tab (only show when editing) -->
+                <template x-if="editingId && activeTab === 'prerequisites'">
+                    <div>
                         <h3 style="color: var(--primary-color); margin-bottom: 15px;">مدیریت پیش‌نیازهای این درس</h3>
                         <p style="color: var(--gray-color); font-size: 13px; margin-bottom: 15px;">
                             پیش‌نیازها برای این درس تعریف می‌شوند و برای تمام بخش‌های این درس در تمام ترم‌ها اعمال می‌شوند.
@@ -177,12 +202,33 @@
                         <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: flex-end;">
                             <div class="form-group" style="margin-bottom: 0; flex: 1;">
                                 <label>افزودن پیش‌نیاز</label>
-                                <select x-model="newPrerequisiteCourse" style="width: 100%;">
-                                    <option value="">انتخاب درس به عنوان پیش‌نیاز</option>
-                                    <template x-for="course in availablePrerequisiteCourses" :key="course.id">
-                                        <option :value="course.id" x-text="course.code + ' - ' + course.title"></option>
-                                    </template>
-                                </select>
+                                <div style="position: relative;">
+                                    <input 
+                                        type="text" 
+                                        x-model="prerequisiteSearchText"
+                                        @input="filterPrerequisiteCourses()"
+                                        @focus="filterPrerequisiteCourses()"
+                                        placeholder="جستجو بر اساس کد یا نام درس..."
+                                        style="width: 100%; margin-bottom: 8px;"
+                                    >
+                                    <select 
+                                        x-model="newPrerequisiteCourse" 
+                                        style="width: 100%;"
+                                    >
+                                        <option value="" x-text="prerequisiteSearchText && prerequisiteSearchText.trim() && availablePrerequisiteCourses.length === 0 ? 'نتیجه‌ای یافت نشد' : 'جستجو کنید یا از لیست انتخاب کنید'"></option>
+                                        <template x-for="course in availablePrerequisiteCourses" :key="course.id">
+                                            <option :value="course.id" x-text="course.code + ' - ' + course.title"></option>
+                                        </template>
+                                    </select>
+                                    <div x-show="prerequisiteSearchText && prerequisiteSearchText.trim() && availablePrerequisiteCourses.length > 0" 
+                                         style="font-size: 12px; color: var(--gray-color); margin-top: 4px;">
+                                        <span x-text="availablePrerequisiteCourses.length"></span> نتیجه یافت شد
+                                    </div>
+                                    <div x-show="prerequisiteSearchText && prerequisiteSearchText.trim() && availablePrerequisiteCourses.length === 0" 
+                                         style="font-size: 12px; color: var(--error-color); margin-top: 4px;">
+                                        نتیجه‌ای یافت نشد
+                                    </div>
+                                </div>
                             </div>
                             <div style="margin-bottom: 0;">
                                 <button type="button" class="btn btn-primary" @click="addPrerequisite()" style="white-space: nowrap; height: fit-content;">
@@ -210,15 +256,15 @@
                                     <template x-for="prereq in coursePrerequisites" :key="prereq.id">
                                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.3); border-radius: 6px;">
                                             <span x-text="getPrerequisiteCourseName(prereq)"></span>
-                                        <button 
-                                            type="button" 
-                                            class="btn btn-danger" 
-                                            style="padding: 4px 12px; font-size: 12px;"
-                                            @click="removePrerequisite(prereq.id, prereq.prerequisite_course)"
-                                            title="حذف پیش‌نیاز"
-                                        >
-                                            <i class="fas fa-times"></i> حذف
-                                        </button>
+                                            <button 
+                                                type="button" 
+                                                class="btn btn-danger" 
+                                                style="padding: 4px 12px; font-size: 12px;"
+                                                @click="removePrerequisite(prereq.id, prereq.prerequisite_course)"
+                                                title="حذف پیش‌نیاز"
+                                            >
+                                                <i class="fas fa-times"></i> حذف
+                                            </button>
                                         </div>
                                     </template>
                                 </div>
@@ -242,6 +288,39 @@
 
 <style>
     [x-cloak] { display: none !important; }
+    
+    .tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 0;
+    }
+    
+    .tab-button {
+        padding: 12px 24px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--gray-color);
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+    }
+    
+    .tab-button:hover {
+        color: var(--primary-color);
+        background: rgba(128, 90, 213, 0.05);
+    }
+    
+    .tab-active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    .tab-inactive {
+        color: var(--gray-color);
+    }
 </style>
 {% endblock %}
 
