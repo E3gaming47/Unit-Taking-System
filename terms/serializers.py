@@ -12,10 +12,10 @@ class TermSerializer(serializers.ModelSerializer):
             "end_date",
             "registration_start",
             "registration_end",
+            "status",
             "is_active",
             "min_units",
             "max_units",
-        
         ]
 
     def validate(self, data): #قبل از اینکه این JSON ذخیره شود، بررسی‌اش کن ببین منطقی هست یا نه

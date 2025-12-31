@@ -107,7 +107,7 @@ def professor_lessons(request):
 
 class UserViewSet(viewsets.ModelViewSet):
 
-    queryset = User.objects.all()
+    queryset = User.objects.all().select_related("department")
     permission_classes = [IsAuthenticated, IsAdmin]
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -123,7 +123,7 @@ class UserViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         
-        queryset = User.objects.all()
+        queryset = User.objects.all().select_related("department")
         role = self.request.query_params.get('role', None)
         
         if role:

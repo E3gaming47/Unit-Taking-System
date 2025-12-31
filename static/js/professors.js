@@ -21,8 +21,8 @@ function professorsManager() {
 
         async init() {
             await Promise.all([
-                this.loadDepartments(),
-                this.loadProfessors()
+                this.loadProfessors(),
+                this.loadDepartments()
             ]);
         },
 
@@ -31,14 +31,7 @@ function professorsManager() {
                 this.departments = await API.getDepartments();
             } catch (err) {
                 console.error('Error loading departments:', err);
-                this.departments = [];
             }
-        },
-
-        getDepartmentName(departmentId) {
-            if (!departmentId) return '-';
-            const dept = this.departments.find(d => d.id === departmentId);
-            return dept ? `${dept.code} - ${dept.name}` : '-';
         },
 
         async loadProfessors() {
@@ -89,6 +82,10 @@ function professorsManager() {
 
         openEditModal(professor) {
             this.editingId = professor.id;
+            // Handle department - can be ID or object
+            const departmentId = typeof professor.department === 'object' 
+                ? professor.department.id 
+                : professor.department;
             this.form = {
                 username: professor.username,
                 email: professor.email || '',
@@ -96,7 +93,7 @@ function professorsManager() {
                 first_name: professor.first_name || '',
                 last_name: professor.last_name || '',
                 professor_id: professor.professor_id || '',
-                department: professor.department || ''
+                department: departmentId || ''
             };
             this.error = '';
             this.success = '';
@@ -122,13 +119,8 @@ function professorsManager() {
             this.error = '';
             this.success = '';
 
-            if (!this.form.username || !this.form.professor_id) {
-                this.error = 'لطفاً نام کاربری و شماره استادی را پر کنید';
-                return;
-            }
-
-            if (!this.form.department) {
-                this.error = 'لطفاً دپارتمان را انتخاب کنید';
+            if (!this.form.username || !this.form.professor_id || !this.form.department) {
+                this.error = 'لطفاً نام کاربری، شماره استادی و دپارتمان را پر کنید';
                 return;
             }
 
@@ -183,6 +175,15 @@ function professorsManager() {
             } catch (err) {
                 this.error = err.message || 'خطا در حذف استاد';
             }
+        },
+
+        getDepartmentName(professor) {
+            if (!professor.department) return '-';
+            const deptId = typeof professor.department === 'object' 
+                ? professor.department.id 
+                : professor.department;
+            const dept = this.departments.find(d => d.id === deptId);
+            return dept ? `${dept.name} (${dept.code})` : '-';
         }
     }
 }

@@ -2,6 +2,7 @@
 function coursesManager() {
     return {
         courses: [],
+        allCourses: [], // All courses for prerequisite dropdown (unfiltered)
         departments: [],
         loading: false,
         error: '',
@@ -12,6 +13,11 @@ function coursesManager() {
         searchText: '',
         selectedDepartment: '',
         selectedUnits: '',
+        // Prerequisites management
+        coursePrerequisites: [],
+        newPrerequisiteCourse: '',
+        loadingPrerequisites: false,
+        availablePrerequisiteCourses: [],
         form: {
             code: '',
             title: '',
@@ -20,10 +26,10 @@ function coursesManager() {
         },
 
         async init() {
-            await Promise.all([
-                this.loadCourses(),
-                this.loadDepartments()
-            ]);
+            // Load filtered courses for display
+            await this.loadCourses();
+            // Load departments
+            await this.loadDepartments();
         },
 
         async loadCourses() {
@@ -47,9 +53,14 @@ function coursesManager() {
                     params.units = this.selectedUnits;
                 }
                 
-                this.courses = await API.getCourses(params);
+                const coursesData = await API.getCourses(params);
+                // Ensure courses is always an array
+                this.courses = Array.isArray(coursesData) ? coursesData : [];
+                console.log('Loaded courses:', this.courses.length);
             } catch (err) {
+                console.error('Error loading courses:', err);
                 this.error = err.message || 'خطا در بارگذاری دروس';
+                this.courses = [];
             } finally {
                 this.loading = false;
             }
@@ -76,15 +87,68 @@ function coursesManager() {
             }
         },
 
+        async loadAllCoursesForPrerequisites() {
+            try {
+                // Load ALL courses without any filters for prerequisite dropdown
+                let allCoursesList = [];
+                let page = 1;
+                let hasMore = true;
+                
+                while (hasMore) {
+                    const queryParams = new URLSearchParams();
+                    queryParams.append('page', page);
+                    queryParams.append('page_size', '100'); // Max page size
+                    
+                    const url = `/api/courses/?${queryParams.toString()}`;
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: API.getAuthHeaders()
+                    });
+                    
+                    const data = await API.handleResponse(response);
+                    
+                    if (data.results && Array.isArray(data.results)) {
+                        allCoursesList = allCoursesList.concat(data.results);
+                        hasMore = !!data.next;
+                        page++;
+                    } else if (Array.isArray(data)) {
+                        allCoursesList = allCoursesList.concat(data);
+                        hasMore = false;
+                    } else {
+                        hasMore = false;
+                    }
+                    
+                    if (page > 100) break; // Safety limit
+                }
+                
+                this.allCourses = allCoursesList;
+                console.log('Loaded courses for prerequisites:', this.allCourses.length);
+                
+                // Update available courses if we're currently editing a course
+                if (this.editingId) {
+                    this.updateAvailablePrerequisiteCourses();
+                }
+            } catch (err) {
+                console.error('Error loading all courses:', err);
+                this.allCourses = [];
+                if (this.editingId) {
+                    this.updateAvailablePrerequisiteCourses();
+                }
+            }
+        },
+
         openAddModal() {
             this.editingId = null;
             this.form = { code: '', title: '', units: 3, departments: [] };
+            this.coursePrerequisites = [];
+            this.newPrerequisiteCourse = '';
+            this.availablePrerequisiteCourses = [];
             this.error = '';
             this.success = '';
             this.showModal = true;
         },
 
-        openEditModal(course) {
+        async openEditModal(course) {
             this.editingId = course.id;
             // Handle departments - API returns array of IDs
             const deptIds = course.departments || [];
@@ -96,6 +160,21 @@ function coursesManager() {
             };
             this.error = '';
             this.success = '';
+            this.coursePrerequisites = [];
+            this.newPrerequisiteCourse = '';
+            this.availablePrerequisiteCourses = [];
+            
+            // Ensure all courses are loaded first
+            if (!this.allCourses || this.allCourses.length === 0) {
+                await this.loadAllCoursesForPrerequisites();
+            }
+            
+            // Load prerequisites for this course
+            await this.loadCoursePrerequisites(course.id);
+            
+            // Update available courses list
+            this.updateAvailablePrerequisiteCourses();
+            
             this.showModal = true;
         },
 
@@ -103,6 +182,9 @@ function coursesManager() {
             this.showModal = false;
             this.editingId = null;
             this.form = { code: '', title: '', units: 3, departments: [] };
+            this.coursePrerequisites = [];
+            this.newPrerequisiteCourse = '';
+            this.availablePrerequisiteCourses = [];
             this.error = '';
         },
 
@@ -131,15 +213,24 @@ function coursesManager() {
                 if (this.editingId) {
                     await API.updateCourse(this.editingId, data);
                     this.success = 'درس با موفقیت ویرایش شد';
+                    await this.loadCourses(); // This will maintain current filters
+                    setTimeout(() => {
+                        this.closeModal();
+                    }, 1000);
                 } else {
-                    await API.createCourse(data);
-                    this.success = 'درس با موفقیت اضافه شد';
+                    const newCourse = await API.createCourse(data);
+                    this.editingId = newCourse.id;
+                    this.success = 'درس با موفقیت اضافه شد. اکنون می‌توانید پیش‌نیازها را مدیریت کنید.';
+                    this.coursePrerequisites = [];
+                    // Reload courses list
+                    await this.loadCourses();
+                    // Reload all courses for prerequisites dropdown
+                    await this.loadAllCoursesForPrerequisites();
+                    await this.loadCoursePrerequisites(newCourse.id);
+                    // Update available courses list
+                    this.updateAvailablePrerequisiteCourses();
+                    // Don't close modal for new courses, so user can manage prerequisites
                 }
-                
-                await this.loadCourses(); // This will maintain current filters
-                setTimeout(() => {
-                    this.closeModal();
-                }, 1000);
             } catch (err) {
                 this.error = err.message || 'خطا در ذخیره درس';
             }
@@ -185,6 +276,175 @@ function coursesManager() {
         getDepartmentNameById(id) {
             const dept = this.departments.find(d => d.id === id);
             return dept ? `${dept.name} (${dept.code})` : '';
+        },
+
+        // Prerequisites management
+        async loadCoursePrerequisites(courseId) {
+            if (!courseId) {
+                this.coursePrerequisites = [];
+                this.updateAvailablePrerequisiteCourses();
+                return;
+            }
+            
+            this.loadingPrerequisites = true;
+            this.error = '';
+            try {
+                const prerequisites = await API.getPrerequisites({ course: courseId });
+                this.coursePrerequisites = Array.isArray(prerequisites) ? [...prerequisites] : [];
+            } catch (err) {
+                console.error('Error loading prerequisites:', err);
+                this.coursePrerequisites = [];
+            } finally {
+                this.loadingPrerequisites = false;
+                // Update available courses after loading prerequisites
+                this.updateAvailablePrerequisiteCourses();
+            }
+        },
+
+        async addPrerequisite() {
+            if (!this.editingId) {
+                this.error = 'لطفاً ابتدا درس را ذخیره کنید، سپس پیش‌نیازها را اضافه کنید';
+                return;
+            }
+
+            if (!this.newPrerequisiteCourse) {
+                this.error = 'لطفاً پیش‌نیاز را انتخاب کنید';
+                return;
+            }
+
+            const courseId = parseInt(this.editingId);
+            const prereqId = parseInt(this.newPrerequisiteCourse);
+
+            if (isNaN(courseId) || isNaN(prereqId) || courseId <= 0 || prereqId <= 0) {
+                this.error = 'خطا: شناسه‌های وارد شده نامعتبر است.';
+                return;
+            }
+
+            // Check if prerequisite already exists
+            const exists = this.coursePrerequisites.some(p => {
+                const existingPrereqId = parseInt(p.prerequisite_course);
+                return existingPrereqId === prereqId;
+            });
+            
+            if (exists) {
+                this.error = 'این پیش‌نیاز قبلاً اضافه شده است';
+                return;
+            }
+
+            try {
+                const data = {
+                    course: courseId,
+                    prerequisite_course: prereqId
+                };
+                
+                await API.addPrerequisite(data);
+                this.success = 'پیش‌نیاز با موفقیت اضافه شد';
+                this.error = '';
+                this.newPrerequisiteCourse = '';
+                // Reload prerequisites (this will also update available courses)
+                await this.loadCoursePrerequisites(courseId);
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
+            } catch (err) {
+                console.error('Error adding prerequisite:', err);
+                this.error = err.message || 'خطا در اضافه کردن پیش‌نیاز';
+                this.success = '';
+            }
+        },
+
+        async removePrerequisite(prerequisiteId, prerequisiteCourseId) {
+            if (!confirm('آیا از حذف این پیش‌نیاز اطمینان دارید؟')) {
+                return;
+            }
+
+            if (!this.editingId) {
+                this.error = 'خطا: درس انتخاب نشده است.';
+                return;
+            }
+
+            if (prerequisiteCourseId === null || prerequisiteCourseId === undefined || prerequisiteCourseId === '') {
+                this.error = 'خطا: اطلاعات پیش‌نیاز نامعتبر است.';
+                return;
+            }
+
+            try {
+                const courseId = parseInt(this.editingId);
+                const prereqCourseId = parseInt(prerequisiteCourseId);
+                
+                if (isNaN(courseId) || isNaN(prereqCourseId) || courseId <= 0 || prereqCourseId <= 0) {
+                    this.error = 'خطا: شناسه‌های وارد شده نامعتبر است.';
+                    return;
+                }
+                
+                const data = {
+                    course: courseId,
+                    prerequisite_course: prereqCourseId
+                };
+                
+                await API.removePrerequisite(data);
+                this.success = 'پیش‌نیاز با موفقیت حذف شد';
+                this.error = '';
+                // Reload prerequisites (this will also update available courses)
+                await this.loadCoursePrerequisites(courseId);
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
+            } catch (err) {
+                console.error('Error removing prerequisite:', err);
+                this.error = err.message || 'خطا در حذف پیش‌نیاز';
+                this.success = '';
+            }
+        },
+
+        getPrerequisiteCourseName(prerequisite) {
+            const prereqId = parseInt(prerequisite.prerequisite_course);
+            const allCourses = this.allCourses || this.courses || [];
+            const course = allCourses.find(c => c.id === prereqId);
+            return course ? `${course.code} - ${course.title}` : `درس #${prereqId}`;
+        },
+
+        updateAvailablePrerequisiteCourses() {
+            // Use allCourses if available, otherwise fallback to courses
+            const sourceCourses = (this.allCourses && this.allCourses.length > 0) 
+                ? this.allCourses 
+                : (this.courses || []);
+            
+            // If no courses available, set empty array
+            if (sourceCourses.length === 0) {
+                this.availablePrerequisiteCourses = [];
+                return;
+            }
+            
+            // If no editingId (adding new course), show all courses
+            if (!this.editingId) {
+                this.availablePrerequisiteCourses = sourceCourses;
+                return;
+            }
+            
+            const currentCourseId = parseInt(this.editingId);
+            if (isNaN(currentCourseId)) {
+                this.availablePrerequisiteCourses = sourceCourses;
+                return;
+            }
+            
+            // Get IDs of already-added prerequisites
+            const existingPrereqIds = (this.coursePrerequisites || [])
+                .map(p => {
+                    // Handle both object and ID format
+                    const prereqId = p.prerequisite_course || p.id;
+                    return parseInt(prereqId);
+                })
+                .filter(id => !isNaN(id) && id > 0);
+            
+            // Filter: exclude current course and already-added prerequisites
+            this.availablePrerequisiteCourses = sourceCourses.filter(c => {
+                const courseId = parseInt(c.id);
+                return !isNaN(courseId) 
+                    && courseId > 0
+                    && courseId !== currentCourseId 
+                    && !existingPrereqIds.includes(courseId);
+            });
         }
     }
 }

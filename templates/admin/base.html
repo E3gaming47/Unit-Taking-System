@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}پنل مدیریت - سیستم انتخاب واحد{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/shabnam-font@latest/dist/font-face.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/admin.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="/static/js/api.js"></script>
+    {% block page_scripts %}{% endblock %}
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -16,7 +18,9 @@
             <h1>سیستم جامع انتخاب واحد</h1>
             <p>{% block page_title %}پنل مدیریت{% endblock %}</p>
             <div style="text-align: left;">
-                <button class="btn btn-danger" style="padding: 8px 16px;" onclick="handleLogout()">خروج</button>
+                <button class="btn btn-danger" style="padding: 8px 16px;" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i> خروج
+                </button>
             </div>
         </div>
 
@@ -25,13 +29,13 @@
             <aside class="sidebar">
                 <h3>منو</h3>
                 <ul class="sidebar-menu">
-                    <li><a href="/admin/dashboard/" class="{% block dashboard_active %}{% endblock %}">داشبورد</a></li>
-                    <li><a href="/admin/departments/" class="{% block departments_active %}{% endblock %}">مدیریت دپارتمان‌ها</a></li>
-                    <li><a href="/admin/courses/" class="{% block courses_active %}{% endblock %}">مدیریت دروس</a></li>
-                    <li><a href="/admin/terms/" class="{% block terms_active %}{% endblock %}">مدیریت ترم‌ها</a></li>
-                    <li><a href="/admin/term-offerings/" class="{% block term_offerings_active %}{% endblock %}">مدیریت ارائه ترم</a></li>
-                    <li><a href="/admin/students/" class="{% block students_active %}{% endblock %}">مدیریت دانشجویان</a></li>
-                    <li><a href="/admin/professors/" class="{% block professors_active %}{% endblock %}">مدیریت اساتید</a></li>
+                    <li><a href="/admin/dashboard/" class="{% block dashboard_active %}{% endblock %}"><i class="fas fa-home"></i> داشبورد</a></li>
+                    <li><a href="/admin/departments/" class="{% block departments_active %}{% endblock %}"><i class="fas fa-building"></i> مدیریت دپارتمان‌ها</a></li>
+                    <li><a href="/admin/courses/" class="{% block courses_active %}{% endblock %}"><i class="fas fa-book"></i> مدیریت دروس</a></li>
+                    <li><a href="/admin/terms/" class="{% block terms_active %}{% endblock %}"><i class="fas fa-calendar-alt"></i> مدیریت ترم‌ها</a></li>
+                    <li><a href="/admin/term-offerings/" class="{% block term_offerings_active %}{% endblock %}"><i class="fas fa-chalkboard-teacher"></i> مدیریت ارائه ترم</a></li>
+                    <li><a href="/admin/students/" class="{% block students_active %}{% endblock %}"><i class="fas fa-user-graduate"></i> مدیریت دانشجویان</a></li>
+                    <li><a href="/admin/professors/" class="{% block professors_active %}{% endblock %}"><i class="fas fa-user-tie"></i> مدیریت اساتید</a></li>
                 </ul>
             </aside>
 

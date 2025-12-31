@@ -90,6 +90,7 @@
                     <th>استاد</th>
                     <th>شماره بخش</th>
                     <th>ظرفیت</th>
+                    <th>پیش‌نیازها</th>
                     <th>برنامه کلاسی</th>
                     <th>امتحان</th>
                 </tr>
@@ -102,6 +103,18 @@
                         <td x-text="section.professor"></td>
                         <td x-text="section.section_number"></td>
                         <td x-text="section.capacity"></td>
+                        <td>
+                            <template x-if="section.course_id && getPrerequisitesForCourse(section.course_id).length > 0">
+                                <div style="font-size: 13px;">
+                                    <template x-for="prereq in getPrerequisitesForCourse(section.course_id)" :key="prereq.id">
+                                        <div style="margin-bottom: 4px; padding: 4px 8px; background: rgba(37, 99, 235, 0.1); border-radius: 4px; display: inline-block; margin-left: 4px;">
+                                            <span x-text="getPrerequisiteCourseName(prereq)"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <span x-show="!section.course_id || getPrerequisitesForCourse(section.course_id).length === 0" style="color: var(--gray-color);">-</span>
+                        </td>
                         <td>
                             <template x-if="section.schedules && section.schedules.length > 0">
                                 <div>
@@ -124,7 +137,7 @@
                     </tr>
                 </template>
                 <tr x-show="sections.length === 0">
-                    <td colspan="7" style="text-align: center; padding: 40px; color: var(--gray-color);">
+                    <td colspan="8" style="text-align: center; padding: 40px; color: var(--gray-color);">
                         درسی ارائه نشده است
                     </td>
                 </tr>
@@ -139,4 +152,7 @@
 
 <script src="/static/js/student-offered-lessons.js"></script>
 {% endblock %}
+
+
+
 

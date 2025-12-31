@@ -37,6 +37,7 @@
                     <th>حداقل واحد</th>
                     <th>حداکثر واحد</th>
                     <th>وضعیت</th>
+                    <th>فعال</th>
                     <th>عملیات</th>
                 </tr>
             </thead>
@@ -51,21 +52,35 @@
                         <td x-text="term.min_units || '-'"></td>
                         <td x-text="term.max_units || '-'"></td>
                         <td>
-                            <span x-show="term.is_active" style="color: var(--success); font-weight: bold;">فعال</span>
-                            <span x-show="!term.is_active" style="color: var(--gray-color);">غیرفعال</span>
+                            <span x-text="getStatusLabel(term.status)" :style="getStatusStyle(term.status)"></span>
+                        </td>
+                        <td>
+                            <span x-show="term.is_active" style="color: var(--success); font-weight: bold;">✓</span>
+                            <span x-show="!term.is_active" style="color: var(--gray-color);">✗</span>
                         </td>
                         <td>
                             <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
-                                <button class="btn btn-secondary" style="padding:6px 12px;" @click="openEditModal(term)">ویرایش</button>
-                                <button x-show="term.is_active" class="btn btn-secondary" style="padding:6px 12px;" @click="deactivateTerm(term.id)">غیرفعال کردن</button>
-                                <button x-show="!term.is_active" class="btn btn-secondary" style="padding:6px 12px;" @click="activateTerm(term.id)">فعال کردن</button>
-                                <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteTerm(term.id, term.name)" :disabled="term.is_active">حذف</button>
+                                <button class="btn btn-secondary" style="padding:6px 12px;" @click="openEditModal(term)" title="ویرایش">
+                                    <i class="fas fa-edit"></i> ویرایش
+                                </button>
+                                <button x-show="term.is_active" class="btn btn-secondary" style="padding:6px 12px;" @click="deactivateTerm(term.id)" title="غیرفعال کردن">
+                                    <i class="fas fa-toggle-on"></i> غیرفعال کردن
+                                </button>
+                                <button x-show="!term.is_active && term.status === 'ready'" class="btn btn-primary" style="padding:6px 12px;" @click="activateTerm(term.id)" title="فعال کردن">
+                                    <i class="fas fa-toggle-on"></i> فعال کردن
+                                </button>
+                                <button x-show="!term.is_active && term.status !== 'ready'" class="btn btn-secondary" style="padding:6px 12px;" @click="setStatusReady(term.id)" title="تنظیم وضعیت به READY">
+                                    <i class="fas fa-check"></i> آماده‌سازی
+                                </button>
+                                <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteTerm(term.id, term.name)" :disabled="term.is_active" title="حذف">
+                                    <i class="fas fa-trash"></i> حذف
+                                </button>
                             </div>
                         </td>
                     </tr>
                 </template>
                 <tr x-show="terms.length === 0">
-                    <td colspan="9" style="text-align: center; padding: 40px; color: var(--gray-color);">
+                    <td colspan="10" style="text-align: center; padding: 40px; color: var(--gray-color);">
                         ترمی وجود ندارد
                     </td>
                 </tr>
@@ -112,6 +127,18 @@
                 <div class="form-group">
                     <label>حداکثر واحد *</label>
                     <input type="number" x-model="form.max_units" min="1" required>
+                </div>
+                <div class="form-group" x-show="editingId">
+                    <label>وضعیت *</label>
+                    <select x-model="form.status" required>
+                        <option value="planning">Planning (در حال برنامه‌ریزی)</option>
+                        <option value="ready">Ready (آماده)</option>
+                        <option value="active">Active (فعال)</option>
+                        <option value="archived">Archived (بایگانی شده)</option>
+                    </select>
+                    <small style="color: var(--gray-color); font-size: 12px; display: block; margin-top: 5px;">
+                        برای فعال کردن ترم، ابتدا وضعیت را به "Ready" تغییر دهید، سپس دکمه "فعال کردن" را بزنید.
+                    </small>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @click="closeModal()">انصراف</button>

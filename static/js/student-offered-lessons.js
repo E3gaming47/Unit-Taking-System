@@ -4,6 +4,8 @@ function offeredLessonsManager() {
         sections: [],
         terms: [],
         departments: [],
+        courses: [],
+        coursePrerequisites: {}, // Map of course_id -> prerequisites array
         loading: false,
         error: '',
         success: '',
@@ -16,7 +18,8 @@ function offeredLessonsManager() {
             await Promise.all([
                 this.loadSections(),
                 this.loadTerms(),
-                this.loadDepartments()
+                this.loadDepartments(),
+                this.loadCourses()
             ]);
         },
 
@@ -39,6 +42,9 @@ function offeredLessonsManager() {
                 }
                 
                 this.sections = await API.getSections(params);
+                
+                // Load prerequisites for all unique courses
+                await this.loadAllPrerequisites();
             } catch (err) {
                 this.error = err.message || 'خطا در بارگذاری دروس ارائه شده';
             } finally {
@@ -60,6 +66,50 @@ function offeredLessonsManager() {
             } catch (err) {
                 console.error('Error loading departments:', err);
             }
+        },
+
+        async loadCourses() {
+            try {
+                this.courses = await API.getCourses();
+            } catch (err) {
+                console.error('Error loading courses:', err);
+            }
+        },
+
+        async loadAllPrerequisites() {
+            // Get unique course IDs from sections
+            const courseIds = [...new Set(this.sections
+                .filter(s => s.course_id)
+                .map(s => s.course_id)
+            )];
+
+            // Load prerequisites for each course
+            // Use Promise.allSettled to continue even if some fail
+            const promises = courseIds.map(async (courseId) => {
+                try {
+                    const prerequisites = await API.getPrerequisites({ course: courseId });
+                    this.coursePrerequisites[courseId] = prerequisites || [];
+                } catch (err) {
+                    // Silently fail for prerequisites - don't break the page
+                    console.warn(`Could not load prerequisites for course ${courseId}:`, err.message);
+                    this.coursePrerequisites[courseId] = [];
+                }
+            });
+            
+            await Promise.allSettled(promises);
+        },
+
+        getPrerequisitesForCourse(courseId) {
+            return this.coursePrerequisites[courseId] || [];
+        },
+
+        getPrerequisiteCourseName(prerequisite) {
+            const prereqId = typeof prerequisite.prerequisite_course === 'object' 
+                ? prerequisite.prerequisite_course.id 
+                : parseInt(prerequisite.prerequisite_course);
+            
+            const course = this.courses.find(c => c.id === prereqId);
+            return course ? `${course.code} - ${course.title}` : 'نامشخص';
         },
 
         applyFilters() {
@@ -104,4 +154,7 @@ function offeredLessonsManager() {
         }
     }
 }
+
+
+
 

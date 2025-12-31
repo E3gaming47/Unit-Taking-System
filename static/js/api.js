@@ -28,7 +28,7 @@ const API = {
             if (response.ok) {
                 return null;
             }
-            throw new Error('خطا در ارتباط با سرور');
+            throw new Error('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.');
         }
         
         if (!response.ok) {
@@ -568,6 +568,108 @@ const API = {
      */
     async deleteSection(id) {
         const response = await this.request(`${this.baseURL}/offerings/sections/${id}/`, { method: 'DELETE' });
+        if (response.status === 204) {
+            return null;
+        }
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Get time slots
+     */
+    async getTimeSlots() {
+        const response = await this.request(`${this.baseURL}/offerings/sections/time-slots/`, { method: 'GET' });
+        const data = await this.handleResponse(response);
+        return data.time_slots || [];
+    },
+
+    // ========== PREREQUISITES API ==========
+
+    /**
+     * Get all prerequisites (with pagination support)
+     * @param {Object} params - Query parameters (page, page_size, course, ordering)
+     */
+    async getPrerequisites(params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.append('page', params.page);
+        if (params.page_size) queryParams.append('page_size', params.page_size);
+        if (params.course) queryParams.append('course', params.course);
+        if (params.ordering) queryParams.append('ordering', params.ordering);
+        
+        const url = `${this.baseURL}/offerings/prerequisites/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        const response = await this.request(url, { method: 'GET' });
+        const data = await this.handleResponse(response);
+        
+        if (data.results) {
+            return data.results;
+        }
+        return data;
+    },
+
+    /**
+     * Get single prerequisite by ID
+     */
+    async getPrerequisite(id) {
+        const response = await this.request(`${this.baseURL}/offerings/prerequisites/${id}/`, { method: 'GET' });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Create new prerequisite
+     */
+    async createPrerequisite(data) {
+        const response = await this.request(`${this.baseURL}/offerings/prerequisites/`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Add prerequisite using custom action
+     */
+    async addPrerequisite(data) {
+        const response = await this.request(`${this.baseURL}/offerings/prerequisites/add_prerequisite/`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Remove prerequisite using custom action
+     */
+    async removePrerequisite(data) {
+        const response = await this.request(`${this.baseURL}/offerings/prerequisites/remove_prerequisite/`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        
+        // 204 No Content means success
+        if (response.status === 204) {
+            return null;
+        }
+        
+        // For any other status, handle as error
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Update prerequisite
+     */
+    async updatePrerequisite(id, data) {
+        const response = await this.request(`${this.baseURL}/offerings/prerequisites/${id}/`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Delete prerequisite
+     */
+    async deletePrerequisite(id) {
+        const response = await this.request(`${this.baseURL}/offerings/prerequisites/${id}/`, { method: 'DELETE' });
         if (response.status === 204) {
             return null;
         }

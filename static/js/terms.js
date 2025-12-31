@@ -14,7 +14,8 @@ function termsManager() {
             registration_start: '',
             registration_end: '',
             min_units: 0,
-            max_units: 20
+            max_units: 20,
+            status: 'planning'
         },
 
         async init() {
@@ -42,7 +43,8 @@ function termsManager() {
                 registration_start: '',
                 registration_end: '',
                 min_units: 0,
-                max_units: 20
+                max_units: 20,
+                status: 'planning'
             };
             this.error = '';
             this.success = '';
@@ -58,7 +60,8 @@ function termsManager() {
                 registration_start: term.registration_start,
                 registration_end: term.registration_end,
                 min_units: term.min_units || 0,
-                max_units: term.max_units || 20
+                max_units: term.max_units || 20,
+                status: term.status || 'planning'
             };
             this.error = '';
             this.success = '';
@@ -75,7 +78,8 @@ function termsManager() {
                 registration_start: '',
                 registration_end: '',
                 min_units: 0,
-                max_units: 20
+                max_units: 20,
+                status: 'planning'
             };
             this.error = '';
         },
@@ -106,6 +110,11 @@ function termsManager() {
                     min_units: parseInt(this.form.min_units) || 0,
                     max_units: parseInt(this.form.max_units) || 20
                 };
+                
+                // Only include status when editing
+                if (this.editingId && this.form.status) {
+                    data.status = this.form.status;
+                }
 
                 if (this.editingId) {
                     await API.updateTerm(this.editingId, data);
@@ -139,22 +148,36 @@ function termsManager() {
         },
 
         async activateTerm(id) {
+            this.error = '';
+            this.success = '';
             try {
                 await API.activateTerm(id);
                 this.success = 'ترم با موفقیت فعال شد';
+                this.error = '';
                 await this.loadTerms();
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
             } catch (err) {
                 this.error = err.message || 'خطا در فعال کردن ترم';
+                this.success = '';
             }
         },
 
         async deactivateTerm(id) {
+            this.error = '';
+            this.success = '';
             try {
                 await API.deactivateTerm(id);
                 this.success = 'ترم با موفقیت غیرفعال شد';
+                this.error = '';
                 await this.loadTerms();
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
             } catch (err) {
                 this.error = err.message || 'خطا در غیرفعال کردن ترم';
+                this.success = '';
             }
         },
 
@@ -162,6 +185,60 @@ function termsManager() {
             if (!dateString) return '-';
             const date = new Date(dateString);
             return date.toLocaleDateString('fa-IR');
+        },
+
+        getStatusLabel(status) {
+            const labels = {
+                'planning': 'در حال برنامه‌ریزی',
+                'ready': 'آماده',
+                'active': 'فعال',
+                'archived': 'بایگانی شده'
+            };
+            return labels[status] || status;
+        },
+
+        getStatusStyle(status) {
+            const styles = {
+                'planning': 'color: var(--gray-color);',
+                'ready': 'color: var(--primary-color); font-weight: bold;',
+                'active': 'color: var(--success); font-weight: bold;',
+                'archived': 'color: var(--gray-color);'
+            };
+            return styles[status] || '';
+        },
+
+        async setStatusReady(id) {
+            this.error = '';
+            this.success = '';
+            try {
+                // Update term status to READY
+                const term = this.terms.find(t => t.id === id);
+                if (!term) {
+                    this.error = 'ترم یافت نشد';
+                    return;
+                }
+                
+                const data = {
+                    name: term.name,
+                    start_date: term.start_date,
+                    end_date: term.end_date,
+                    registration_start: term.registration_start,
+                    registration_end: term.registration_end,
+                    min_units: term.min_units || 0,
+                    max_units: term.max_units || 20,
+                    status: 'ready'
+                };
+                
+                await API.updateTerm(id, data);
+                this.success = 'وضعیت ترم به "آماده" تغییر یافت. اکنون می‌توانید آن را فعال کنید.';
+                await this.loadTerms();
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
+            } catch (err) {
+                this.error = err.message || 'خطا در تغییر وضعیت ترم';
+                this.success = '';
+            }
         }
     }
 }

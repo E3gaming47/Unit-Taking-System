@@ -213,6 +213,7 @@ class SectionCreateSerializer(serializers.ModelSerializer):
 class SectionDetailSerializer(serializers.ModelSerializer):
     term = serializers.StringRelatedField()
     course = serializers.StringRelatedField()
+    course_id = serializers.IntegerField(read_only=True)
     professor = serializers.StringRelatedField()
 
     schedules = SectionScheduleSerializer(many=True, read_only=True)
@@ -224,6 +225,7 @@ class SectionDetailSerializer(serializers.ModelSerializer):
             "id",
             "term",
             "course",
+            "course_id",
             "professor",
             "section_number",
             "capacity",

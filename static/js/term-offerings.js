@@ -20,7 +20,9 @@ function termOfferingsManager() {
             course: '',
             professor: '',
             section_number: 1,
-            capacity: 1
+            capacity: 1,
+            schedules: [],
+            exam: null
         },
 
         async init() {
@@ -109,7 +111,9 @@ function termOfferingsManager() {
                 course: '',
                 professor: '',
                 section_number: 1,
-                capacity: 1
+                capacity: 1,
+                schedules: [],
+                exam: null
             };
             this.error = '';
             this.success = '';
@@ -120,22 +124,57 @@ function termOfferingsManager() {
             this.editingId = section.id;
             try {
                 // SectionDetailSerializer returns term, course, professor as strings
-                // We need to find the IDs by matching with our dropdowns
+                // But also includes course_id field
                 const termId = this.terms.find(t => t.name === section.term)?.id || '';
-                const courseId = this.courses.find(c => `${c.code} - ${c.title}` === section.course)?.id || '';
+                // Use course_id if available, otherwise try to match by string
+                const courseId = section.course_id || this.courses.find(c => `${c.code} - ${c.title}` === section.course)?.id || '';
                 const professorId = this.professors.find(p => {
                     const profName = p.username + (p.first_name ? ` (${p.first_name} ${p.last_name || ''})` : '');
                     return profName === section.professor || p.username === section.professor;
                 })?.id || '';
+                
+                // Load schedules and exam from section data
+                const schedules = section.schedules || [];
+                const exam = section.exam || null;
+                
+                // Convert exam datetime to datetime-local format
+                let examDatetime = null;
+                if (exam && exam.exam_datetime) {
+                    try {
+                        // Convert ISO datetime to datetime-local format (YYYY-MM-DDTHH:mm)
+                        const date = new Date(exam.exam_datetime);
+                        if (!isNaN(date.getTime())) {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            examDatetime = `${year}-${month}-${day}T${hours}:${minutes}`;
+                        }
+                    } catch (err) {
+                        console.error('Error converting exam datetime:', err);
+                    }
+                }
                 
                 this.form = {
                     term: termId,
                     course: courseId,
                     professor: professorId,
                     section_number: section.section_number || 1,
-                    capacity: section.capacity || 1
+                    capacity: section.capacity || 1,
+                    schedules: (schedules || []).map(s => ({
+                        day_of_week: s.day_of_week || 0,
+                        start_time: s.start_time || '',
+                        end_time: s.end_time || '',
+                        location: s.location || ''
+                    })),
+                    exam: exam ? {
+                        exam_datetime: examDatetime,
+                        location: exam.location || ''
+                    } : null
                 };
             } catch (err) {
+                console.error('Error opening edit modal:', err);
                 this.error = 'خطا در بارگذاری اطلاعات ارائه';
                 return;
             }
@@ -152,9 +191,104 @@ function termOfferingsManager() {
                 course: '',
                 professor: '',
                 section_number: 1,
-                capacity: 1
+                capacity: 1,
+                schedules: [],
+                exam: null
             };
             this.error = '';
+        },
+
+        // Schedule management
+        addSchedule() {
+            this.form.schedules.push({
+                day_of_week: 0,
+                start_time: '',
+                end_time: '',
+                location: ''
+            });
+        },
+
+        removeSchedule(index) {
+            this.form.schedules.splice(index, 1);
+        },
+
+        getDayName(dayOfWeek) {
+            const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+            return days[dayOfWeek] || 'نامشخص';
+        },
+
+        formatTime(time) {
+            if (!time) return '';
+            try {
+                // Handle both "HH:MM:SS" and "HH:MM" formats
+                const parts = String(time).split(':');
+                if (parts.length < 2) return String(time);
+                return `${parts[0]}:${parts[1]}`;
+            } catch (err) {
+                console.error('Error formatting time:', err);
+                return String(time);
+            }
+        },
+
+        getScheduleText(schedule) {
+            if (!schedule) return 'نامشخص';
+            try {
+                const day = this.getDayName(schedule.day_of_week);
+                const start = this.formatTime(schedule.start_time);
+                const end = this.formatTime(schedule.end_time);
+                const location = schedule.location ? ` - ${schedule.location}` : '';
+                return `${day} ${start}-${end}${location}`;
+            } catch (err) {
+                console.error('Error formatting schedule:', err);
+                return 'خطا در نمایش اطلاعات';
+            }
+        },
+
+        // Exam management
+        setExam() {
+            if (!this.form.exam) {
+                this.form.exam = {
+                    exam_datetime: '',
+                    location: ''
+                };
+            }
+        },
+
+        removeExam() {
+            this.form.exam = null;
+        },
+
+        formatDateTime(datetime) {
+            if (!datetime) return '';
+            try {
+                // Handle ISO datetime string
+                const date = new Date(datetime);
+                if (isNaN(date.getTime())) {
+                    // Invalid date
+                    return String(datetime);
+                }
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${year}-${month}-${day} ${hours}:${minutes}`;
+            } catch (err) {
+                console.error('Error formatting datetime:', err);
+                return String(datetime);
+            }
+        },
+
+        getExamText(exam) {
+            if (!exam) return 'تعریف نشده';
+            try {
+                const datetime = this.formatDateTime(exam.exam_datetime);
+                const location = exam.location ? ` - ${exam.location}` : '';
+                return `${datetime}${location}`;
+            } catch (err) {
+                console.error('Error formatting exam:', err);
+                return 'خطا در نمایش اطلاعات';
+            }
         },
 
         async submitForm() {
@@ -168,14 +302,47 @@ function termOfferingsManager() {
             }
 
             try {
+                // Prepare schedules - ensure array exists
+                const schedules = (this.form.schedules || []).map(s => ({
+                    day_of_week: parseInt(s.day_of_week) || 0,
+                    start_time: s.start_time || '',
+                    end_time: s.end_time || '',
+                    location: s.location || ''
+                }));
+
+                // Prepare exam - convert datetime-local to ISO format
+                let exam = null;
+                if (this.form.exam && this.form.exam.exam_datetime) {
+                    try {
+                        // Convert datetime-local format to ISO string
+                        const datetimeStr = String(this.form.exam.exam_datetime);
+                        // datetime-local format is "YYYY-MM-DDTHH:mm", need to add seconds
+                        const isoDatetime = datetimeStr.includes('T') 
+                            ? `${datetimeStr}:00` 
+                            : datetimeStr;
+                        exam = {
+                            exam_datetime: isoDatetime,
+                            location: this.form.exam.location || ''
+                        };
+                    } catch (err) {
+                        console.error('Error preparing exam data:', err);
+                        exam = null;
+                    }
+                }
+
                 const data = {
                     term: parseInt(this.form.term),
                     course: parseInt(this.form.course),
                     professor: parseInt(this.form.professor),
                     section_number: parseInt(this.form.section_number),
-                    capacity: parseInt(this.form.capacity)
+                    capacity: parseInt(this.form.capacity),
+                    schedules: schedules,
+                    exam: exam
                 };
 
+                let sectionId = this.editingId;
+                let isNewSection = false;
+                
                 if (this.editingId) {
                     await API.updateSection(this.editingId, data);
                     this.success = 'ارائه با موفقیت ویرایش شد';
