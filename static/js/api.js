@@ -16,8 +16,10 @@ const API = {
     
     /**
      * Handle API response and parse JSON
+     * @param {Response} response - Fetch response object
+     * @param {boolean} skipAuthCheck - Skip automatic auth handling (for refresh token calls)
      */
-    async handleResponse(response) {
+    async handleResponse(response, skipAuthCheck = false) {
         let data;
         try {
             data = await response.json();
@@ -45,8 +47,17 @@ const API = {
                 }
             }
             
-            // Handle authentication errors
-            if (response.status === 401 || response.status === 403) {
+            // Handle authentication errors (403 = forbidden, always redirect)
+            if (response.status === 403) {
+                if (!skipAuthCheck) {
+                    this.clearAuth();
+                    window.location.href = '/';
+                }
+                throw new Error('شما دسترسی لازم برای این عملیات را ندارید.');
+            }
+            
+            // Handle 401 (unauthorized) - should be handled by request() method, but keep as fallback
+            if (response.status === 401 && !skipAuthCheck) {
                 this.clearAuth();
                 window.location.href = '/';
                 throw new Error('دسترسی غیرمجاز. لطفاً دوباره وارد شوید.');
@@ -57,6 +68,48 @@ const API = {
         }
         
         return data;
+    },
+
+    /**
+     * Make an authenticated API request with automatic token refresh on 401
+     * @param {string} url - Request URL
+     * @param {Object} options - Fetch options
+     * @param {boolean} retryOn401 - Whether to retry on 401 (default: true)
+     * @returns {Promise<Response>} Fetch response
+     */
+    async request(url, options = {}, retryOn401 = true) {
+        // Make initial request
+        let response = await fetch(url, {
+            ...options,
+            headers: {
+                ...this.getAuthHeaders(),
+                ...(options.headers || {})
+            }
+        });
+
+        // If 401 and retry is enabled, try to refresh token and retry once
+        if (response.status === 401 && retryOn401) {
+            try {
+                // Try to refresh the token
+                await this.refreshToken();
+                
+                // Retry the original request with new token
+                response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        ...this.getAuthHeaders(),
+                        ...(options.headers || {})
+                    }
+                });
+            } catch (refreshError) {
+                // Refresh failed, clear auth and redirect to login
+                this.clearAuth();
+                window.location.href = '/';
+                throw new Error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+            }
+        }
+
+        return response;
     },
     
     /**
@@ -122,6 +175,7 @@ const API = {
 
     /**
      * Logout user (clear auth and redirect)
+     * Note: Doesn't use request() method to avoid token refresh retry on logout
      */
     async logout() {
         const refreshToken = localStorage.getItem('refresh_token');
@@ -163,9 +217,13 @@ const API = {
                 body: JSON.stringify({ refresh: refreshToken })
             });
 
-            const data = await this.handleResponse(response);
-            localStorage.setItem('access_token', data.access);
-            return data.access;
+            // Skip auth check for refresh endpoint to avoid infinite loop
+            const data = await this.handleResponse(response, true);
+            if (data && data.access) {
+                localStorage.setItem('access_token', data.access);
+                return data.access;
+            }
+            throw new Error('Invalid refresh response');
         } catch (error) {
             this.clearAuth();
             throw error;
@@ -186,10 +244,7 @@ const API = {
         if (params.ordering) queryParams.append('ordering', params.ordering);
         
         const url = `${this.baseURL}/departments/departments/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(url, { method: 'GET' });
         const data = await this.handleResponse(response);
         
         // Handle paginated response
@@ -203,10 +258,7 @@ const API = {
      * Get single department by ID
      */
     async getDepartment(id) {
-        const response = await fetch(`${this.baseURL}/departments/departments/${id}/`, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/departments/departments/${id}/`, { method: 'GET' });
         return this.handleResponse(response);
     },
 
@@ -214,9 +266,8 @@ const API = {
      * Create new department
      */
     async createDepartment(data) {
-        const response = await fetch(`${this.baseURL}/departments/departments/`, {
+        const response = await this.request(`${this.baseURL}/departments/departments/`, {
             method: 'POST',
-            headers: this.getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return this.handleResponse(response);
@@ -226,9 +277,8 @@ const API = {
      * Update department
      */
     async updateDepartment(id, data) {
-        const response = await fetch(`${this.baseURL}/departments/departments/${id}/`, {
+        const response = await this.request(`${this.baseURL}/departments/departments/${id}/`, {
             method: 'PUT',
-            headers: this.getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return this.handleResponse(response);
@@ -238,10 +288,7 @@ const API = {
      * Delete department
      */
     async deleteDepartment(id) {
-        const response = await fetch(`${this.baseURL}/departments/departments/${id}/`, {
-            method: 'DELETE',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/departments/departments/${id}/`, { method: 'DELETE' });
         if (response.status === 204) {
             return null;
         }
@@ -264,10 +311,7 @@ const API = {
         if (params.ordering) queryParams.append('ordering', params.ordering);
         
         const url = `${this.baseURL}/courses/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(url, { method: 'GET' });
         const data = await this.handleResponse(response);
         
         // Handle paginated response
@@ -281,10 +325,7 @@ const API = {
      * Get single course by ID
      */
     async getCourse(id) {
-        const response = await fetch(`${this.baseURL}/courses/${id}/`, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/courses/${id}/`, { method: 'GET' });
         return this.handleResponse(response);
     },
 
@@ -292,9 +333,8 @@ const API = {
      * Create new course
      */
     async createCourse(data) {
-        const response = await fetch(`${this.baseURL}/courses/`, {
+        const response = await this.request(`${this.baseURL}/courses/`, {
             method: 'POST',
-            headers: this.getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return this.handleResponse(response);
@@ -304,9 +344,8 @@ const API = {
      * Update course
      */
     async updateCourse(id, data) {
-        const response = await fetch(`${this.baseURL}/courses/${id}/`, {
+        const response = await this.request(`${this.baseURL}/courses/${id}/`, {
             method: 'PUT',
-            headers: this.getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return this.handleResponse(response);
@@ -316,10 +355,7 @@ const API = {
      * Delete course
      */
     async deleteCourse(id) {
-        const response = await fetch(`${this.baseURL}/courses/${id}/`, {
-            method: 'DELETE',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/courses/${id}/`, { method: 'DELETE' });
         if (response.status === 204) {
             return null;
         }
@@ -341,10 +377,7 @@ const API = {
         if (params.ordering) queryParams.append('ordering', params.ordering);
         
         const url = `${this.baseURL}/accounts/users/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(url, { method: 'GET' });
         const data = await this.handleResponse(response);
         
         // Handle paginated response
@@ -358,10 +391,7 @@ const API = {
      * Get single user by ID
      */
     async getUser(id) {
-        const response = await fetch(`${this.baseURL}/accounts/users/${id}/`, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/accounts/users/${id}/`, { method: 'GET' });
         return this.handleResponse(response);
     },
 
@@ -369,9 +399,8 @@ const API = {
      * Create new user
      */
     async createUser(data) {
-        const response = await fetch(`${this.baseURL}/accounts/users/`, {
+        const response = await this.request(`${this.baseURL}/accounts/users/`, {
             method: 'POST',
-            headers: this.getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return this.handleResponse(response);
@@ -381,9 +410,8 @@ const API = {
      * Update user
      */
     async updateUser(id, data) {
-        const response = await fetch(`${this.baseURL}/accounts/users/${id}/`, {
+        const response = await this.request(`${this.baseURL}/accounts/users/${id}/`, {
             method: 'PUT',
-            headers: this.getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return this.handleResponse(response);
@@ -393,10 +421,7 @@ const API = {
      * Delete user
      */
     async deleteUser(id) {
-        const response = await fetch(`${this.baseURL}/accounts/users/${id}/`, {
-            method: 'DELETE',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/accounts/users/${id}/`, { method: 'DELETE' });
         if (response.status === 204) {
             return null;
         }
@@ -416,10 +441,7 @@ const API = {
         if (params.ordering) queryParams.append('ordering', params.ordering);
         
         const url = `${this.baseURL}/terms/terms/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(url, { method: 'GET' });
         const data = await this.handleResponse(response);
         
         if (data.results) {
@@ -432,10 +454,7 @@ const API = {
      * Get single term by ID
      */
     async getTerm(id) {
-        const response = await fetch(`${this.baseURL}/terms/terms/${id}/`, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/terms/terms/${id}/`, { method: 'GET' });
         return this.handleResponse(response);
     },
 
@@ -443,9 +462,8 @@ const API = {
      * Create new term
      */
     async createTerm(data) {
-        const response = await fetch(`${this.baseURL}/terms/terms/`, {
+        const response = await this.request(`${this.baseURL}/terms/terms/`, {
             method: 'POST',
-            headers: this.getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return this.handleResponse(response);
@@ -455,9 +473,8 @@ const API = {
      * Update term
      */
     async updateTerm(id, data) {
-        const response = await fetch(`${this.baseURL}/terms/terms/${id}/`, {
+        const response = await this.request(`${this.baseURL}/terms/terms/${id}/`, {
             method: 'PUT',
-            headers: this.getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return this.handleResponse(response);
@@ -467,10 +484,7 @@ const API = {
      * Delete term
      */
     async deleteTerm(id) {
-        const response = await fetch(`${this.baseURL}/terms/terms/${id}/`, {
-            method: 'DELETE',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/terms/terms/${id}/`, { method: 'DELETE' });
         if (response.status === 204) {
             return null;
         }
@@ -481,10 +495,7 @@ const API = {
      * Activate term
      */
     async activateTerm(id) {
-        const response = await fetch(`${this.baseURL}/terms/terms/${id}/activate/`, {
-            method: 'POST',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/terms/terms/${id}/activate/`, { method: 'POST' });
         return this.handleResponse(response);
     },
 
@@ -492,10 +503,7 @@ const API = {
      * Deactivate term
      */
     async deactivateTerm(id) {
-        const response = await fetch(`${this.baseURL}/terms/terms/${id}/deactivate/`, {
-            method: 'POST',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/terms/terms/${id}/deactivate/`, { method: 'POST' });
         return this.handleResponse(response);
     },
 
@@ -516,10 +524,7 @@ const API = {
         if (params.ordering) queryParams.append('ordering', params.ordering);
         
         const url = `${this.baseURL}/offerings/sections/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(url, { method: 'GET' });
         const data = await this.handleResponse(response);
         
         if (data.results) {
@@ -532,10 +537,7 @@ const API = {
      * Get single section by ID
      */
     async getSection(id) {
-        const response = await fetch(`${this.baseURL}/offerings/sections/${id}/`, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/offerings/sections/${id}/`, { method: 'GET' });
         return this.handleResponse(response);
     },
 
@@ -543,9 +545,8 @@ const API = {
      * Create new section
      */
     async createSection(data) {
-        const response = await fetch(`${this.baseURL}/offerings/sections/`, {
+        const response = await this.request(`${this.baseURL}/offerings/sections/`, {
             method: 'POST',
-            headers: this.getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return this.handleResponse(response);
@@ -555,9 +556,8 @@ const API = {
      * Update section
      */
     async updateSection(id, data) {
-        const response = await fetch(`${this.baseURL}/offerings/sections/${id}/`, {
+        const response = await this.request(`${this.baseURL}/offerings/sections/${id}/`, {
             method: 'PUT',
-            headers: this.getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return this.handleResponse(response);
@@ -567,10 +567,7 @@ const API = {
      * Delete section
      */
     async deleteSection(id) {
-        const response = await fetch(`${this.baseURL}/offerings/sections/${id}/`, {
-            method: 'DELETE',
-            headers: this.getAuthHeaders()
-        });
+        const response = await this.request(`${this.baseURL}/offerings/sections/${id}/`, { method: 'DELETE' });
         if (response.status === 204) {
             return null;
         }
