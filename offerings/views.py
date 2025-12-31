@@ -1,5 +1,6 @@
 from rest_framework import filters, permissions, viewsets
 from django.db.models import Q
+from rest_framework.decorators import action
 
 from api.pagination import StandardResultsSetPagination
 from terms.models import Term
@@ -43,6 +44,7 @@ class SectionViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="time-slots")
     def time_slots(self, request):
         slots = []
+
         for code, start, end in SectionSchedule.TIME_SLOTS:
             slots.append({
                 "code": code,
