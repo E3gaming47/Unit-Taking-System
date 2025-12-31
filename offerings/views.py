@@ -1,9 +1,10 @@
 from rest_framework import filters, permissions, viewsets
 from django.db.models import Q
+from rest_framework.decorators import action
 
 from api.pagination import StandardResultsSetPagination
 from terms.models import Term
-from .models import Section
+from .models import Section, SectionSchedule
 from .serializers import (
     SectionCreateSerializer,
     SectionDetailSerializer,
@@ -39,6 +40,19 @@ class SectionViewSet(viewsets.ModelViewSet):
         if self.action in ["list", "retrieve"]:
             return SectionDetailSerializer
         return SectionCreateSerializer
+
+    @action(detail=False, methods=["get"], url_path="time-slots")
+    def time_slots(self, request):
+        slots = []
+
+        for code, start, end in SectionSchedule.TIME_SLOTS:
+            slots.append({
+                "code": code,
+                "label": f"{start.strftime('%H:%M')}-{end.strftime('%H:%M')}",
+                "start_time": start.isoformat(),
+                "end_time": end.isoformat(),
+            })
+        return Response({"time_slots": slots})
 
     def get_queryset(self):
         qs = super().get_queryset()
