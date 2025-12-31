@@ -1,0 +1,141 @@
+{% extends "professors/base.html" %}
+
+{% block title %}دروس من - سیستم انتخاب واحد{% endblock %}
+
+{% block page_title %}دروس من{% endblock %}
+
+{% block lessons_active %}active{% endblock %}
+
+{% block content %}
+<div x-data="professorLessonsManager()" x-init="init()">
+    <!-- Alerts -->
+    <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
+    <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
+
+    <!-- Header -->
+    <div style="margin-bottom: 20px;">
+        <h2>لیست دروس من</h2>
+        <p style="color: var(--gray-color); margin-top: 10px;">در این بخش می‌توانید تمام دروسی که به شما اختصاص داده شده است را مشاهده کنید.</p>
+    </div>
+
+    <!-- Search Filters -->
+    <div class="filter-section">
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; align-items: end;">
+            <!-- Search -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>جستجو (کد درس، نام درس، ترم)</label>
+                <input 
+                    type="text" 
+                    x-model="searchText"
+                    @input.debounce.500ms="applyFilters()"
+                    placeholder="جستجو..."
+                >
+            </div>
+
+            <!-- Filter by term -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>فیلتر بر اساس ترم</label>
+                <select 
+                    x-model="selectedTerm"
+                    @change="applyFilters()"
+                >
+                    <option value="">همه ترم‌ها</option>
+                    <template x-for="term in terms" :key="term.id">
+                        <option :value="term.id" x-text="term.name"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- Filter by department -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>فیلتر بر اساس دپارتمان</label>
+                <select 
+                    x-model="selectedDepartment"
+                    @change="applyFilters()"
+                >
+                    <option value="">همه دپارتمان‌ها</option>
+                    <template x-for="dept in departments" :key="dept.id">
+                        <option :value="dept.id" x-text="dept.name + ' (' + dept.code + ')'"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- Clear filters button -->
+            <div>
+                <button 
+                    type="button"
+                    @click="clearFilters()"
+                    class="btn btn-secondary"
+                    style="padding: 10px 20px; white-space: nowrap;"
+                    :disabled="!searchText && !selectedTerm && !selectedDepartment"
+                >
+                    پاک کردن فیلترها
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="loading">
+        <div class="spinner"></div>
+        <p>در حال بارگذاری...</p>
+    </div>
+
+    <!-- Table -->
+    <div x-show="!loading" class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ترم</th>
+                    <th>درس</th>
+                    <th>شماره بخش</th>
+                    <th>ظرفیت</th>
+                    <th>برنامه کلاسی</th>
+                    <th>امتحان</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="section in sections" :key="section.id">
+                    <tr>
+                        <td x-text="section.term"></td>
+                        <td x-text="section.course"></td>
+                        <td x-text="section.section_number"></td>
+                        <td x-text="section.capacity"></td>
+                        <td>
+                            <template x-if="section.schedules && section.schedules.length > 0">
+                                <div>
+                                    <template x-for="schedule in section.schedules" :key="schedule.id">
+                                        <div x-text="getScheduleText(schedule)" style="margin-bottom: 5px;"></div>
+                                    </template>
+                                </div>
+                            </template>
+                            <span x-show="!section.schedules || section.schedules.length === 0">-</span>
+                        </td>
+                        <td>
+                            <template x-if="section.exam">
+                                <div>
+                                    <div x-text="formatDateTime(section.exam.exam_datetime)"></div>
+                                    <div x-show="section.exam.location" x-text="'مکان: ' + section.exam.location" style="font-size: 12px; color: var(--gray-color);"></div>
+                                </div>
+                            </template>
+                            <span x-show="!section.exam">-</span>
+                        </td>
+                    </tr>
+                </template>
+                <tr x-show="sections.length === 0">
+                    <td colspan="6" style="text-align: center; padding: 40px; color: var(--gray-color);">
+                        درسی به شما اختصاص داده نشده است
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+
+<script src="/static/js/professor-lessons.js"></script>
+{% endblock %}
+

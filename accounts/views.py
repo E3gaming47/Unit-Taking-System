@@ -6,7 +6,7 @@ from django.shortcuts import render, redirect
 
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -31,11 +31,11 @@ def dashboard_redirect(request):
     user = request.user
 
     if user.role == "admin":
-        return redirect('admin-dashboard')
+        return redirect('/admin/dashboard/')
     elif user.role == "student":
-        return redirect('student-dashboard')
+        return redirect('/api/accounts/student/dashboard/')
     elif user.role == "professor":
-        return redirect('professor-dashboard')
+        return redirect('/api/accounts/professor/dashboard/')
 
     return HttpResponseForbidden("Invalid role")
 
@@ -66,11 +66,28 @@ def admin_professors(request):
     """Render admin professors page"""
     return render(request, 'admin/professors.html')
 
+
+def admin_terms(request):
+    """Render admin terms page"""
+    return render(request, 'admin/terms.html')
+
+
+def admin_term_offerings(request):
+    """Render admin term offerings (sections) page"""
+    return render(request, 'admin/term-offerings.html')
+
 @login_required
 def student_dashboard(request):
     if request.user.role != "student":
         return HttpResponseForbidden()
     return render(request, 'students/dashboard.html')
+
+
+@login_required
+def student_offered_lessons(request):
+    if request.user.role != "student":
+        return HttpResponseForbidden()
+    return render(request, 'students/offered-lessons.html')
 
 
 
@@ -81,18 +98,29 @@ def professor_dashboard(request):
     return render(request, 'professors/dashboard.html')
 
 
+@login_required
+def professor_lessons(request):
+    if request.user.role != "professor":
+        return HttpResponseForbidden()
+    return render(request, 'professors/lessons.html')
+
+
 class UserViewSet(viewsets.ModelViewSet):
 
     queryset = User.objects.all()
     permission_classes = [IsAuthenticated, IsAdmin]
     pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["username", "email", "first_name", "last_name", "student_id", "professor_id", "role"]
+    ordering_fields = ["username", "email", "first_name", "last_name", "id"]
+    ordering = ["username"]
     
     def get_serializer_class(self):
         
         if self.action == 'create':
             return UserCreateSerializer
         return UserSerializer
-
+    
     def get_queryset(self):
         
         queryset = User.objects.all()
@@ -157,7 +185,7 @@ class AuthViewSet(viewsets.ViewSet):
         refresh = RefreshToken.for_user(user)
 
         if user.role == "admin":
-            redirect_url = "/admin/departments/"
+            redirect_url = "/admin/dashboard/"
         elif user.role == "student":
             redirect_url = "/api/accounts/student/dashboard/"
         elif user.role == "professor":

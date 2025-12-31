@@ -22,7 +22,6 @@ class Course(models.Model):
         blank=True,
         related_name="courses"
     )
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -41,3 +40,23 @@ class Course(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.title}"
+
+class Prerequisite(models.Model):
+    course = models.ForeignKey(
+        "courses.Course",
+        on_delete=models.CASCADE,
+        related_name="prerequisites",
+    )
+
+    prerequisite_course = models.ForeignKey(
+        "courses.Course",
+        on_delete=models.CASCADE,
+        related_name="is_prerequisite_of",
+    )
+
+    class Meta:
+        unique_together = ("course", "prerequisite_course")
+
+    def clean(self):
+        if self.course_id == self.prerequisite_course_id:
+            raise ValidationError("A course cannot be a prerequisite of itself.")

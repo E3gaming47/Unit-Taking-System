@@ -1,0 +1,61 @@
+{% extends "admin/base.html" %}
+
+{% block title %}داشبورد - سیستم انتخاب واحد{% endblock %}
+
+{% block page_title %}داشبورد{% endblock %}
+
+{% block dashboard_active %}active{% endblock %}
+
+{% block content %}
+<div x-data="dashboardManager()" x-init="init()">
+    <!-- Alerts -->
+    <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
+    <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="loading">
+        <div class="spinner"></div>
+        <p>در حال بارگذاری...</p>
+    </div>
+
+    <!-- Admin Info -->
+    <div x-show="!loading && adminInfo" class="table-container">
+        <h2 style="margin-bottom: 20px; color: var(--primary-color);">اطلاعات مدیر</h2>
+        <table>
+            <tbody>
+                <tr>
+                    <th style="width: 200px;">نام کاربری</th>
+                    <td x-text="adminInfo.username || '-'"></td>
+                </tr>
+                <tr>
+                    <th>ایمیل</th>
+                    <td x-text="adminInfo.email || '-'"></td>
+                </tr>
+                <tr>
+                    <th>نام</th>
+                    <td x-text="adminInfo.first_name || '-'"></td>
+                </tr>
+                <tr>
+                    <th>نام خانوادگی</th>
+                    <td x-text="adminInfo.last_name || '-'"></td>
+                </tr>
+                <tr>
+                    <th>نقش</th>
+                    <td x-text="adminInfo.role || '-'"></td>
+                </tr>
+                <tr>
+                    <th>شناسه کاربری</th>
+                    <td x-text="adminInfo.id || '-'"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}
+
