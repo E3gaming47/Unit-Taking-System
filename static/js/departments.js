@@ -8,6 +8,8 @@ function departmentsManager() {
         showModal: false,
         editingId: null,
         searchText: '',
+        orderBy: 'code', // Default ordering field
+        orderDirection: 'asc', // 'asc' or 'desc'
         form: {
             name: '',
             code: ''
@@ -28,6 +30,12 @@ function departmentsManager() {
                     params.search = this.searchText.trim();
                 }
                 
+                // Add ordering parameter
+                if (this.orderBy) {
+                    const prefix = this.orderDirection === 'desc' ? '-' : '';
+                    params.ordering = `${prefix}${this.orderBy}`;
+                }
+                
                 this.departments = await API.getDepartments(params);
             } catch (err) {
                 this.error = err.message || 'خطا در بارگذاری دپارتمان‌ها';
@@ -44,6 +52,19 @@ function departmentsManager() {
         // Clear search
         clearSearch() {
             this.searchText = '';
+            this.loadDepartments();
+        },
+
+        // Change ordering
+        changeOrdering(field) {
+            if (this.orderBy === field) {
+                // Toggle direction if same field
+                this.orderDirection = this.orderDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                // New field, default to ascending
+                this.orderBy = field;
+                this.orderDirection = 'asc';
+            }
             this.loadDepartments();
         },
 

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include, re_path
-from accounts.views import login_page, admin_dashboard, admin_departments, admin_courses, admin_students, admin_professors, admin_terms, admin_term_offerings, dashboard_redirect
+from accounts.views import login_page, admin_dashboard, admin_departments, admin_classrooms, admin_courses, admin_students, admin_professors, admin_terms, admin_term_offerings, dashboard_redirect
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -26,6 +26,7 @@ urlpatterns = [
     path("dashboard/", dashboard_redirect, name="dashboard_redirect"),
     path("admin/dashboard/", admin_dashboard, name="admin_dashboard"),
     path("admin/departments/", admin_departments, name="admin_departments"),
+    path("admin/classrooms/", admin_classrooms, name="admin_classrooms"),
     path("admin/courses/", admin_courses, name="admin_courses"),
     path("admin/students/", admin_students, name="admin_students"),
     path("admin/professors/", admin_professors, name="admin_professors"),

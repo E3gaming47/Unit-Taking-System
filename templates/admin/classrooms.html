@@ -1,21 +1,21 @@
 {% extends "admin/base.html" %}
 
-{% block title %}مدیریت دپارتمان‌ها - سیستم انتخاب واحد{% endblock %}
+{% block title %}مدیریت کلاس‌ها - سیستم انتخاب واحد{% endblock %}
 
-{% block page_title %}مدیریت دپارتمان‌ها{% endblock %}
+{% block page_title %}مدیریت کلاس‌ها{% endblock %}
 
-{% block departments_active %}active{% endblock %}
+{% block classrooms_active %}active{% endblock %}
 
 {% block content %}
-<div x-data="departmentsManager()" x-init="init()">
+<div x-data="classroomsManager()" x-init="init()">
     <!-- Alerts -->
     <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
     <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
 
     <!-- Header -->
     <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-        <h2>لیست دپارتمان‌ها</h2>
-        <button class="btn btn-primary" @click="openAddModal()">افزودن دپارتمان جدید</button>
+        <h2>لیست کلاس‌ها</h2>
+        <button class="btn btn-primary" @click="openAddModal()">افزودن کلاس جدید</button>
     </div>
 
     <!-- Search Filter -->
@@ -23,12 +23,12 @@
         <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: end;">
             <!-- Search -->
             <div class="form-group" style="margin-bottom: 0;">
-                <label>جستجو (نام یا کد دپارتمان)</label>
+                <label>جستجو (شماره کلاس یا دپارتمان)</label>
                 <input 
                     type="text" 
                     x-model="searchText"
                     @input.debounce.500ms="applySearch()"
-                    placeholder="جستجو بر اساس نام یا کد دپارتمان..."
+                    placeholder="جستجو بر اساس شماره کلاس یا دپارتمان..."
                 >
             </div>
 
@@ -59,25 +59,26 @@
             <thead>
                 <tr>
                     <th>
-                        <button @click="changeOrdering('code')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; width: 100%; text-align: right; font-weight: bold;">
-                            کد دپارتمان
-                            <span x-show="orderBy === 'code'">
+                        <button @click="changeOrdering('number')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; width: 100%; text-align: right; font-weight: bold;">
+                            شماره کلاس
+                            <span x-show="orderBy === 'number'">
                                 <i x-show="orderDirection === 'asc'" class="fas fa-sort-up"></i>
                                 <i x-show="orderDirection === 'desc'" class="fas fa-sort-down"></i>
                             </span>
-                            <span x-show="orderBy !== 'code'">
+                            <span x-show="orderBy !== 'number'">
                                 <i class="fas fa-sort" style="opacity: 0.3;"></i>
                             </span>
                         </button>
                     </th>
+                    <th>دپارتمان</th>
                     <th>
-                        <button @click="changeOrdering('name')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; width: 100%; text-align: right; font-weight: bold;">
-                            نام دپارتمان
-                            <span x-show="orderBy === 'name'">
+                        <button @click="changeOrdering('capacity')" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; width: 100%; text-align: right; font-weight: bold;">
+                            ظرفیت
+                            <span x-show="orderBy === 'capacity'">
                                 <i x-show="orderDirection === 'asc'" class="fas fa-sort-up"></i>
                                 <i x-show="orderDirection === 'desc'" class="fas fa-sort-down"></i>
                             </span>
-                            <span x-show="orderBy !== 'name'">
+                            <span x-show="orderBy !== 'capacity'">
                                 <i class="fas fa-sort" style="opacity: 0.3;"></i>
                             </span>
                         </button>
@@ -86,23 +87,29 @@
                 </tr>
             </thead>
             <tbody>
-                <template x-for="dept in departments" :key="dept.id">
+                <template x-for="classroom in classrooms" :key="classroom.id">
                     <tr>
-                        <td x-text="dept.code"></td>
-                        <td x-text="dept.name"></td>
+                        <td x-text="classroom.number"></td>
+                        <td x-text="getDepartmentNameById(classroom.department)"></td>
                         <td>
-                            <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(dept)" title="ویرایش">
+                            <span class="capacity-badge" :class="getCapacityColor(classroom.capacity)">
+                                <span x-text="classroom.capacity"></span>
+                                <small style="margin-right: 5px;" x-text="'(' + getCapacityLabel(classroom.capacity) + ')'"></small>
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-secondary" style="padding:6px 12px;margin-left:5px;" @click="openEditModal(classroom)" title="ویرایش">
                                 <i class="fas fa-edit"></i> ویرایش
                             </button>
-                            <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteDepartment(dept.id, dept.name)" title="حذف">
+                            <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteClassroom(classroom.id, classroom.number)" title="حذف">
                                 <i class="fas fa-trash"></i> حذف
                             </button>
                         </td>
                     </tr>
                 </template>
-                <tr x-show="departments.length === 0">
-                    <td colspan="3" style="text-align: center; padding: 40px; color: var(--gray-color);">
-                        دپارتمانی وجود ندارد
+                <tr x-show="classrooms.length === 0">
+                    <td colspan="4" style="text-align: center; padding: 40px; color: var(--gray-color);">
+                        کلاسی وجود ندارد
                     </td>
                 </tr>
             </tbody>
@@ -113,7 +120,7 @@
     <div class="modal" :class="{ active: showModal }" @click.self="closeModal()">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 x-text="editingId ? 'ویرایش دپارتمان' : 'افزودن دپارتمان جدید'"></h2>
+                <h2 x-text="editingId ? 'ویرایش کلاس' : 'افزودن کلاس جدید'"></h2>
                 <button class="modal-close" @click="closeModal()">×</button>
             </div>
             
@@ -122,12 +129,21 @@
 
             <form @submit.prevent="submitForm()">
                 <div class="form-group">
-                    <label>نام دپارتمان *</label>
-                    <input type="text" x-model="form.name" required>
+                    <label>شماره کلاس *</label>
+                    <input type="text" x-model="form.number" required placeholder="مثال: 101">
                 </div>
                 <div class="form-group">
-                    <label>کد دپارتمان *</label>
-                    <input type="text" x-model="form.code" required>
+                    <label>ظرفیت *</label>
+                    <input type="number" x-model="form.capacity" min="1" required placeholder="مثال: 30">
+                </div>
+                <div class="form-group">
+                    <label>دپارتمان (اختیاری)</label>
+                    <select x-model="form.department">
+                        <option value="">بدون دپارتمان</option>
+                        <template x-for="dept in departments" :key="dept.id">
+                            <option :value="dept.id" x-text="dept.name + ' (' + dept.code + ')'"></option>
+                        </template>
+                    </select>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @click="closeModal()">انصراف</button>
@@ -140,8 +156,34 @@
 
 <style>
     [x-cloak] { display: none !important; }
+    
+    .capacity-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 0.9em;
+    }
+    
+    .capacity-low {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .capacity-medium {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+    
+    .capacity-high {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
 </style>
 
-<script src="/static/js/departments.js"></script>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="/static/js/classrooms.js"></script>
 {% endblock %}
 

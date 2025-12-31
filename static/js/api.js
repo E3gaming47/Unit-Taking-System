@@ -295,6 +295,70 @@ const API = {
         return this.handleResponse(response);
     },
 
+    // ========== CLASSROOMS API ==========
+    /**
+     * Get all classrooms with optional filters
+     * @param {Object} params - Query parameters (search, ordering, page, page_size)
+     */
+    async getClassrooms(params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.search) queryParams.append('search', params.search);
+        if (params.ordering) queryParams.append('ordering', params.ordering);
+        if (params.page) queryParams.append('page', params.page);
+        if (params.page_size) queryParams.append('page_size', params.page_size);
+        
+        const url = `${this.baseURL}/departments/classrooms/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        const response = await this.request(url, { method: 'GET' });
+        const data = await this.handleResponse(response);
+        
+        // Handle paginated response
+        if (data.results) {
+            return data.results;
+        }
+        return data;
+    },
+
+    /**
+     * Get single classroom by ID
+     */
+    async getClassroom(id) {
+        const response = await this.request(`${this.baseURL}/departments/classrooms/${id}/`, { method: 'GET' });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Create new classroom
+     */
+    async createClassroom(data) {
+        const response = await this.request(`${this.baseURL}/departments/classrooms/`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Update classroom
+     */
+    async updateClassroom(id, data) {
+        const response = await this.request(`${this.baseURL}/departments/classrooms/${id}/`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
+    },
+
+    /**
+     * Delete classroom
+     */
+    async deleteClassroom(id) {
+        const response = await this.request(`${this.baseURL}/departments/classrooms/${id}/`, { method: 'DELETE' });
+        if (response.status === 204) {
+            return null;
+        }
+        return this.handleResponse(response);
+    },
+
     // ========== COURSES API ==========
 
     /**

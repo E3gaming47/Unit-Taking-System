@@ -52,6 +52,11 @@ def admin_departments(request):
     return render(request, 'admin/departments.html')
 
 
+def admin_classrooms(request):
+    """Render admin classrooms page"""
+    return render(request, 'admin/classrooms.html')
+
+
 def admin_courses(request):
     """Render admin courses page"""
     return render(request, 'admin/courses.html')
