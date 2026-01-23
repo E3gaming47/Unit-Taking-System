@@ -3,11 +3,17 @@ const API = {
     // Base URL for API endpoints
     baseURL: '/api',
     
+    // Flag to track if we're currently redirecting (prevent multiple redirects)
+    _isRedirecting: false,
+    
     /**
      * Get authentication headers with access token
      */
     getAuthHeaders() {
         const token = localStorage.getItem('access_token');
+        if (!token) {
+            console.warn('No access token found in localStorage');
+        }
         return {
             'Content-Type': 'application/json',
             ...(token && { 'Authorization': `Bearer ${token}` })
@@ -17,9 +23,9 @@ const API = {
     /**
      * Handle API response and parse JSON
      * @param {Response} response - Fetch response object
-     * @param {boolean} skipAuthCheck - Skip automatic auth handling (for refresh token calls)
+     * @param {boolean} skipRedirect - Skip automatic redirect on auth errors
      */
-    async handleResponse(response, skipAuthCheck = false) {
+    async handleResponse(response, skipRedirect = true) {
         let data;
         try {
             data = await response.json();
@@ -40,6 +46,8 @@ const API = {
                         errors.push(...data[key]);
                     } else if (typeof data[key] === 'string') {
                         errors.push(data[key]);
+                    } else if (typeof data[key] === 'object' && data[key].message) {
+                        errors.push(data[key].message);
                     }
                 }
                 if (errors.length > 0) {
@@ -47,23 +55,17 @@ const API = {
                 }
             }
             
-            // Handle authentication errors (403 = forbidden, always redirect)
+            // Handle authentication errors - NEVER redirect automatically
+            // Let the calling code decide what to do
             if (response.status === 403) {
-                if (!skipAuthCheck) {
-                    this.clearAuth();
-                    window.location.href = '/';
-                }
                 throw new Error('شما دسترسی لازم برای این عملیات را ندارید.');
             }
             
-            // Handle 401 (unauthorized) - should be handled by request() method, but keep as fallback
-            if (response.status === 401 && !skipAuthCheck) {
-                this.clearAuth();
-                window.location.href = '/';
-                throw new Error('دسترسی غیرمجاز. لطفاً دوباره وارد شوید.');
+            if (response.status === 401) {
+                throw new Error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
             }
             
-            const error = data.detail || data.message || data.username || data.password || 'خطا در ارتباط با سرور';
+            const error = data.detail || data.error || data.message || data.username || data.password || 'خطا در ارتباط با سرور';
             throw new Error(error);
         }
         
@@ -102,10 +104,12 @@ const API = {
                     }
                 });
             } catch (refreshError) {
-                // Refresh failed, clear auth and redirect to login
+                // Refresh failed - clear auth but DON'T redirect
+                // Let the calling code handle the error
+                console.error('Token refresh failed:', refreshError);
                 this.clearAuth();
-                window.location.href = '/';
-                throw new Error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+                // Return the original 401 response so caller can handle it
+                return response;
             }
         }
 
@@ -217,7 +221,7 @@ const API = {
                 body: JSON.stringify({ refresh: refreshToken })
             });
 
-            // Skip auth check for refresh endpoint to avoid infinite loop
+            // Skip redirect for refresh endpoint to avoid infinite loop
             const data = await this.handleResponse(response, true);
             if (data && data.access) {
                 localStorage.setItem('access_token', data.access);
@@ -230,6 +234,26 @@ const API = {
         }
     },
 
+    /**
+     * Check if user is authenticated (has valid token)
+     */
+    isAuthenticated() {
+        return !!localStorage.getItem('access_token');
+    },
+
+    /**
+     * Redirect to login page (only call this explicitly when needed)
+     */
+    redirectToLogin() {
+        if (this._isRedirecting) return;
+        this._isRedirecting = true;
+        this.clearAuth();
+        setTimeout(() => {
+            window.location.href = '/';
+            this._isRedirecting = false;
+        }, 100);
+    },
+
     // ========== DEPARTMENTS API ==========
     
     /**
@@ -237,29 +261,39 @@ const API = {
      * @param {Object} params - Query parameters (page, page_size, search, ordering)
      */
     async getDepartments(params = {}) {
-        const queryParams = new URLSearchParams();
-        if (params.page) queryParams.append('page', params.page);
-        if (params.page_size) queryParams.append('page_size', params.page_size);
-        if (params.search) queryParams.append('search', params.search);
-        if (params.ordering) queryParams.append('ordering', params.ordering);
-        
-        const url = `${this.baseURL}/departments/departments${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await this.request(url, { method: 'GET' });
-        const data = await this.handleResponse(response);
-        
-        // Handle paginated response
-        if (data.results) {
-            return data.results; // Return just the results array
+        try {
+            const queryParams = new URLSearchParams();
+            if (params.page) queryParams.append('page', params.page);
+            if (params.page_size) queryParams.append('page_size', params.page_size);
+            if (params.search) queryParams.append('search', params.search);
+            if (params.ordering) queryParams.append('ordering', params.ordering);
+            
+            const url = `${this.baseURL}/departments/departments${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await this.request(url, { method: 'GET' });
+            const data = await this.handleResponse(response);
+            
+            // Handle paginated response
+            if (data.results) {
+                return data.results; // Return just the results array
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.error('Error loading departments:', err);
+            return [];
         }
-        return data; // Return as-is if not paginated
     },
 
     /**
      * Get single department by ID
      */
     async getDepartment(id) {
-        const response = await this.request(`${this.baseURL}/departments/departments/${id}/`, { method: 'GET' });
-        return this.handleResponse(response);
+        try {
+            const response = await this.request(`${this.baseURL}/departments/departments/${id}/`, { method: 'GET' });
+            return await this.handleResponse(response);
+        } catch (err) {
+            console.error('Error loading department:', err);
+            throw err;
+        }
     },
 
     /**
@@ -270,7 +304,7 @@ const API = {
             method: 'POST',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -281,7 +315,7 @@ const API = {
             method: 'PUT',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -292,7 +326,7 @@ const API = {
         if (response.status === 204) {
             return null;
         }
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     // ========== CLASSROOMS API ==========
@@ -301,29 +335,39 @@ const API = {
      * @param {Object} params - Query parameters (search, ordering, page, page_size)
      */
     async getClassrooms(params = {}) {
-        const queryParams = new URLSearchParams();
-        if (params.search) queryParams.append('search', params.search);
-        if (params.ordering) queryParams.append('ordering', params.ordering);
-        if (params.page) queryParams.append('page', params.page);
-        if (params.page_size) queryParams.append('page_size', params.page_size);
-        
-        const url = `${this.baseURL}/departments/classrooms${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await this.request(url, { method: 'GET' });
-        const data = await this.handleResponse(response);
-        
-        // Handle paginated response
-        if (data.results) {
-            return data.results;
+        try {
+            const queryParams = new URLSearchParams();
+            if (params.search) queryParams.append('search', params.search);
+            if (params.ordering) queryParams.append('ordering', params.ordering);
+            if (params.page) queryParams.append('page', params.page);
+            if (params.page_size) queryParams.append('page_size', params.page_size);
+            
+            const url = `${this.baseURL}/departments/classrooms${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await this.request(url, { method: 'GET' });
+            const data = await this.handleResponse(response);
+            
+            // Handle paginated response
+            if (data.results) {
+                return data.results;
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.error('Error loading classrooms:', err);
+            return [];
         }
-        return data;
     },
 
     /**
      * Get single classroom by ID
      */
     async getClassroom(id) {
-        const response = await this.request(`${this.baseURL}/departments/classrooms/${id}/`, { method: 'GET' });
-        return this.handleResponse(response);
+        try {
+            const response = await this.request(`${this.baseURL}/departments/classrooms/${id}/`, { method: 'GET' });
+            return await this.handleResponse(response);
+        } catch (err) {
+            console.error('Error loading classroom:', err);
+            throw err;
+        }
     },
 
     /**
@@ -334,7 +378,7 @@ const API = {
             method: 'POST',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -345,7 +389,7 @@ const API = {
             method: 'PUT',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -356,7 +400,7 @@ const API = {
         if (response.status === 204) {
             return null;
         }
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     // ========== COURSES API ==========
@@ -366,31 +410,41 @@ const API = {
      * @param {Object} params - Query parameters (page, page_size, search, department, units, ordering)
      */
     async getCourses(params = {}) {
-        const queryParams = new URLSearchParams();
-        if (params.page) queryParams.append('page', params.page);
-        if (params.page_size) queryParams.append('page_size', params.page_size);
-        if (params.search) queryParams.append('search', params.search);
-        if (params.department) queryParams.append('department', params.department);
-        if (params.units) queryParams.append('units', params.units);
-        if (params.ordering) queryParams.append('ordering', params.ordering);
-        
-        const url = `${this.baseURL}/courses/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await this.request(url, { method: 'GET' });
-        const data = await this.handleResponse(response);
-        
-        // Handle paginated response
-        if (data.results) {
-            return data.results; // Return just the results array
+        try {
+            const queryParams = new URLSearchParams();
+            if (params.page) queryParams.append('page', params.page);
+            if (params.page_size) queryParams.append('page_size', params.page_size);
+            if (params.search) queryParams.append('search', params.search);
+            if (params.department) queryParams.append('department', params.department);
+            if (params.units) queryParams.append('units', params.units);
+            if (params.ordering) queryParams.append('ordering', params.ordering);
+            
+            const url = `${this.baseURL}/courses/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await this.request(url, { method: 'GET' });
+            const data = await this.handleResponse(response);
+            
+            // Handle paginated response
+            if (data.results) {
+                return data.results; // Return just the results array
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.error('Error loading courses:', err);
+            return [];
         }
-        return data; // Return as-is if not paginated
     },
 
     /**
      * Get single course by ID
      */
     async getCourse(id) {
-        const response = await this.request(`${this.baseURL}/courses/${id}/`, { method: 'GET' });
-        return this.handleResponse(response);
+        try {
+            const response = await this.request(`${this.baseURL}/courses/${id}/`, { method: 'GET' });
+            return await this.handleResponse(response);
+        } catch (err) {
+            console.error('Error loading course:', err);
+            throw err;
+        }
     },
 
     /**
@@ -401,7 +455,7 @@ const API = {
             method: 'POST',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -412,7 +466,7 @@ const API = {
             method: 'PUT',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -423,7 +477,7 @@ const API = {
         if (response.status === 204) {
             return null;
         }
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     // ========== USERS API ==========
@@ -433,30 +487,40 @@ const API = {
      * @param {Object} params - Query parameters (page, page_size, search, role, ordering)
      */
     async getUsers(params = {}) {
-        const queryParams = new URLSearchParams();
-        if (params.page) queryParams.append('page', params.page);
-        if (params.page_size) queryParams.append('page_size', params.page_size);
-        if (params.search) queryParams.append('search', params.search);
-        if (params.role) queryParams.append('role', params.role);
-        if (params.ordering) queryParams.append('ordering', params.ordering);
-        
-        const url = `${this.baseURL}/accounts/users/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await this.request(url, { method: 'GET' });
-        const data = await this.handleResponse(response);
-        
-        // Handle paginated response
-        if (data.results) {
-            return data.results; // Return just the results array
+        try {
+            const queryParams = new URLSearchParams();
+            if (params.page) queryParams.append('page', params.page);
+            if (params.page_size) queryParams.append('page_size', params.page_size);
+            if (params.search) queryParams.append('search', params.search);
+            if (params.role) queryParams.append('role', params.role);
+            if (params.ordering) queryParams.append('ordering', params.ordering);
+            
+            const url = `${this.baseURL}/accounts/users/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await this.request(url, { method: 'GET' });
+            const data = await this.handleResponse(response);
+            
+            // Handle paginated response
+            if (data.results) {
+                return data.results; // Return just the results array
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.error('Error loading users:', err);
+            return [];
         }
-        return data; // Return as-is if not paginated
     },
 
     /**
      * Get single user by ID
      */
     async getUser(id) {
-        const response = await this.request(`${this.baseURL}/accounts/users/${id}/`, { method: 'GET' });
-        return this.handleResponse(response);
+        try {
+            const response = await this.request(`${this.baseURL}/accounts/users/${id}/`, { method: 'GET' });
+            return await this.handleResponse(response);
+        } catch (err) {
+            console.error('Error loading user:', err);
+            throw err;
+        }
     },
 
     /**
@@ -467,7 +531,7 @@ const API = {
             method: 'POST',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -478,7 +542,7 @@ const API = {
             method: 'PUT',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -489,7 +553,7 @@ const API = {
         if (response.status === 204) {
             return null;
         }
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     // ========== TERMS API ==========
@@ -499,27 +563,37 @@ const API = {
      * @param {Object} params - Query parameters (page, page_size, ordering)
      */
     async getTerms(params = {}) {
-        const queryParams = new URLSearchParams();
-        if (params.page) queryParams.append('page', params.page);
-        if (params.page_size) queryParams.append('page_size', params.page_size);
-        if (params.ordering) queryParams.append('ordering', params.ordering);
-        
-        const url = `${this.baseURL}/terms/terms/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await this.request(url, { method: 'GET' });
-        const data = await this.handleResponse(response);
-        
-        if (data.results) {
-            return data.results;
+        try {
+            const queryParams = new URLSearchParams();
+            if (params.page) queryParams.append('page', params.page);
+            if (params.page_size) queryParams.append('page_size', params.page_size);
+            if (params.ordering) queryParams.append('ordering', params.ordering);
+            
+            const url = `${this.baseURL}/terms/terms/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await this.request(url, { method: 'GET' });
+            const data = await this.handleResponse(response);
+            
+            if (data.results) {
+                return data.results;
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.error('Error loading terms:', err);
+            return [];
         }
-        return data;
     },
 
     /**
      * Get single term by ID
      */
     async getTerm(id) {
-        const response = await this.request(`${this.baseURL}/terms/terms/${id}/`, { method: 'GET' });
-        return this.handleResponse(response);
+        try {
+            const response = await this.request(`${this.baseURL}/terms/terms/${id}/`, { method: 'GET' });
+            return await this.handleResponse(response);
+        } catch (err) {
+            console.error('Error loading term:', err);
+            throw err;
+        }
     },
 
     /**
@@ -530,7 +604,7 @@ const API = {
             method: 'POST',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -541,7 +615,7 @@ const API = {
             method: 'PUT',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -552,7 +626,7 @@ const API = {
         if (response.status === 204) {
             return null;
         }
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -560,7 +634,7 @@ const API = {
      */
     async activateTerm(id) {
         const response = await this.request(`${this.baseURL}/terms/terms/${id}/activate/`, { method: 'POST' });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -568,7 +642,7 @@ const API = {
      */
     async deactivateTerm(id) {
         const response = await this.request(`${this.baseURL}/terms/terms/${id}/deactivate/`, { method: 'POST' });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     // ========== SECTIONS API ==========
@@ -578,31 +652,41 @@ const API = {
      * @param {Object} params - Query parameters (page, page_size, search, term, department, professor, ordering)
      */
     async getSections(params = {}) {
-        const queryParams = new URLSearchParams();
-        if (params.page) queryParams.append('page', params.page);
-        if (params.page_size) queryParams.append('page_size', params.page_size);
-        if (params.search) queryParams.append('search', params.search);
-        if (params.term) queryParams.append('term', params.term);
-        if (params.department) queryParams.append('department', params.department);
-        if (params.professor) queryParams.append('professor', params.professor);
-        if (params.ordering) queryParams.append('ordering', params.ordering);
-        
-        const url = `${this.baseURL}/offerings/sections/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await this.request(url, { method: 'GET' });
-        const data = await this.handleResponse(response);
-        
-        if (data.results) {
-            return data.results;
+        try {
+            const queryParams = new URLSearchParams();
+            if (params.page) queryParams.append('page', params.page);
+            if (params.page_size) queryParams.append('page_size', params.page_size);
+            if (params.search) queryParams.append('search', params.search);
+            if (params.term) queryParams.append('term', params.term);
+            if (params.department) queryParams.append('department', params.department);
+            if (params.professor) queryParams.append('professor', params.professor);
+            if (params.ordering) queryParams.append('ordering', params.ordering);
+            
+            const url = `${this.baseURL}/offerings/sections/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await this.request(url, { method: 'GET' });
+            const data = await this.handleResponse(response);
+            
+            if (data.results) {
+                return data.results;
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.error('Error loading sections:', err);
+            return [];
         }
-        return data;
     },
 
     /**
      * Get single section by ID
      */
     async getSection(id) {
-        const response = await this.request(`${this.baseURL}/offerings/sections/${id}/`, { method: 'GET' });
-        return this.handleResponse(response);
+        try {
+            const response = await this.request(`${this.baseURL}/offerings/sections/${id}/`, { method: 'GET' });
+            return await this.handleResponse(response);
+        } catch (err) {
+            console.error('Error loading section:', err);
+            throw err;
+        }
     },
 
     /**
@@ -613,7 +697,7 @@ const API = {
             method: 'POST',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -624,7 +708,7 @@ const API = {
             method: 'PUT',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -635,16 +719,21 @@ const API = {
         if (response.status === 204) {
             return null;
         }
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
      * Get time slots
      */
     async getTimeSlots() {
-        const response = await this.request(`${this.baseURL}/offerings/sections/time-slots/`, { method: 'GET' });
-        const data = await this.handleResponse(response);
-        return data.time_slots || [];
+        try {
+            const response = await this.request(`${this.baseURL}/offerings/sections/time-slots/`, { method: 'GET' });
+            const data = await this.handleResponse(response);
+            return data.time_slots || [];
+        } catch (err) {
+            console.error('Error loading time slots:', err);
+            return [];
+        }
     },
 
     // ========== PREREQUISITES API ==========
@@ -654,28 +743,38 @@ const API = {
      * @param {Object} params - Query parameters (page, page_size, course, ordering)
      */
     async getPrerequisites(params = {}) {
-        const queryParams = new URLSearchParams();
-        if (params.page) queryParams.append('page', params.page);
-        if (params.page_size) queryParams.append('page_size', params.page_size);
-        if (params.course) queryParams.append('course', params.course);
-        if (params.ordering) queryParams.append('ordering', params.ordering);
-        
-        const url = `${this.baseURL}/offerings/prerequisites/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        const response = await this.request(url, { method: 'GET' });
-        const data = await this.handleResponse(response);
-        
-        if (data.results) {
-            return data.results;
+        try {
+            const queryParams = new URLSearchParams();
+            if (params.page) queryParams.append('page', params.page);
+            if (params.page_size) queryParams.append('page_size', params.page_size);
+            if (params.course) queryParams.append('course', params.course);
+            if (params.ordering) queryParams.append('ordering', params.ordering);
+            
+            const url = `${this.baseURL}/offerings/prerequisites/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await this.request(url, { method: 'GET' });
+            const data = await this.handleResponse(response);
+            
+            if (data.results) {
+                return data.results;
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.error('Error loading prerequisites:', err);
+            return [];
         }
-        return data;
     },
 
     /**
      * Get single prerequisite by ID
      */
     async getPrerequisite(id) {
-        const response = await this.request(`${this.baseURL}/offerings/prerequisites/${id}/`, { method: 'GET' });
-        return this.handleResponse(response);
+        try {
+            const response = await this.request(`${this.baseURL}/offerings/prerequisites/${id}/`, { method: 'GET' });
+            return await this.handleResponse(response);
+        } catch (err) {
+            console.error('Error loading prerequisite:', err);
+            throw err;
+        }
     },
 
     /**
@@ -686,7 +785,7 @@ const API = {
             method: 'POST',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -697,7 +796,7 @@ const API = {
             method: 'POST',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -715,7 +814,7 @@ const API = {
         }
         
         // For any other status, handle as error
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -726,7 +825,7 @@ const API = {
             method: 'PUT',
             body: JSON.stringify(data)
         });
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
     },
 
     /**
@@ -737,7 +836,136 @@ const API = {
         if (response.status === 204) {
             return null;
         }
-        return this.handleResponse(response);
+        return await this.handleResponse(response);
+    },
+
+    // ========== REGISTRATION API ==========
+
+    /**
+     * Get all registrations for current student (with pagination support)
+     * @param {Object} params - Query parameters (page, page_size)
+     */
+    async getMyRegistrations(params = {}) {
+        try {
+            const queryParams = new URLSearchParams();
+            if (params.page) queryParams.append('page', params.page);
+            if (params.page_size) queryParams.append('page_size', params.page_size);
+            
+            const url = `${this.baseURL}/registration/registrations/my-registrations/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await this.request(url, { method: 'GET' });
+            const data = await this.handleResponse(response);
+            
+            if (data.results) {
+                return data.results;
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.warn('Could not load registrations:', err.message);
+            return [];
+        }
+    },
+
+    /**
+     * Get weekly schedule for current student
+     */
+    async getWeeklySchedule() {
+        try {
+            const response = await this.request(`${this.baseURL}/registration/registrations/weekly-schedule/`, { method: 'GET' });
+            return await this.handleResponse(response);
+        } catch (err) {
+            console.warn('Could not load weekly schedule:', err.message);
+            return null;
+        }
+    },
+
+    /**
+     * Get total units for current student in active term
+     */
+    async getTotalUnits() {
+        try {
+            const response = await this.request(`${this.baseURL}/registration/registrations/total-units/`, { method: 'GET' });
+            return await this.handleResponse(response);
+        } catch (err) {
+            console.warn('Could not load total units:', err.message);
+            return { total_units: 0, term: null };
+        }
+    },
+
+    /**
+     * Register student for a section
+     * @param {number} sectionId - Section ID to register for
+     */
+    async registerForSection(sectionId) {
+        const response = await this.request(`${this.baseURL}/registration/registrations/`, {
+            method: 'POST',
+            body: JSON.stringify({ section_id: sectionId })
+        });
+        return await this.handleResponse(response);
+    },
+
+    /**
+     * Drop a course (delete registration)
+     * @param {number} registrationId - Registration ID to delete
+     */
+    async dropCourse(registrationId) {
+        const response = await this.request(`${this.baseURL}/registration/registrations/${registrationId}/`, { method: 'DELETE' });
+        if (response.status === 204) {
+            return null;
+        }
+        return await this.handleResponse(response);
+    },
+
+    // ========== PROFESSOR SECTIONS API ==========
+
+    /**
+     * Get all sections taught by current professor
+     * @param {Object} params - Query parameters (term, page, page_size)
+     */
+    async getMySections(params = {}) {
+        try {
+            const queryParams = new URLSearchParams();
+            if (params.term) queryParams.append('term', params.term);
+            if (params.page) queryParams.append('page', params.page);
+            if (params.page_size) queryParams.append('page_size', params.page_size);
+            
+            const url = `${this.baseURL}/offerings/sections/my-sections/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await this.request(url, { method: 'GET' });
+            const data = await this.handleResponse(response);
+            
+            if (data.results) {
+                return data.results;
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            console.error('Error loading my sections:', err);
+            return [];
+        }
+    },
+
+    /**
+     * Get enrolled students for a section
+     * @param {number} sectionId - Section ID
+     */
+    async getEnrolledStudents(sectionId) {
+        try {
+            const response = await this.request(`${this.baseURL}/offerings/sections/${sectionId}/enrolled-students/`, { method: 'GET' });
+            return await this.handleResponse(response);
+        } catch (err) {
+            console.error('Error loading enrolled students:', err);
+            throw err;
+        }
+    },
+
+    /**
+     * Remove a student from a section
+     * @param {number} sectionId - Section ID
+     * @param {number} studentId - Student ID to remove
+     */
+    async removeStudentFromSection(sectionId, studentId) {
+        const response = await this.request(`${this.baseURL}/offerings/sections/${sectionId}/remove-student/`, {
+            method: 'POST',
+            body: JSON.stringify({ student_id: studentId })
+        });
+        return await this.handleResponse(response);
     }
 };
-
