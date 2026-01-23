@@ -6,21 +6,45 @@ function offeredLessonsManager() {
         departments: [],
         courses: [],
         coursePrerequisites: {}, // Map of course_id -> prerequisites array
+        myRegistrations: [], // List of enrolled sections
+        enrolledSectionIds: new Set(), // Set of enrolled section IDs for quick lookup
         loading: false,
         error: '',
         success: '',
+        enrolling: null, // Section ID being enrolled
+        dropping: null, // Registration ID being dropped
         // Filter states
         searchText: '',
         selectedTerm: '',
         selectedDepartment: '',
 
         async init() {
-            await Promise.all([
-                this.loadSections(),
+            // Load sections first (most important)
+            await this.loadSections();
+            
+            // Load other data in parallel, but don't fail if any of them fail
+            await Promise.allSettled([
+                this.loadMyRegistrations(),
                 this.loadTerms(),
                 this.loadDepartments(),
                 this.loadCourses()
             ]);
+        },
+
+        async loadMyRegistrations() {
+            try {
+                const registrations = await API.getMyRegistrations();
+                this.myRegistrations = Array.isArray(registrations) ? registrations : [];
+                // Create a Set of enrolled section IDs for quick lookup
+                this.enrolledSectionIds = new Set(
+                    this.myRegistrations.map(reg => reg.section?.id).filter(id => id !== undefined)
+                );
+            } catch (err) {
+                console.error('Error loading registrations:', err);
+                // Don't show error or redirect - just continue without enrollment info
+                this.myRegistrations = [];
+                this.enrolledSectionIds = new Set();
+            }
         },
 
         async loadSections() {
@@ -41,12 +65,34 @@ function offeredLessonsManager() {
                     params.department = this.selectedDepartment;
                 }
                 
+                // Load sections - API will return empty array on error, not throw
                 this.sections = await API.getSections(params);
                 
-                // Load prerequisites for all unique courses
-                await this.loadAllPrerequisites();
+                if (this.sections.length === 0 && !this.searchText && !this.selectedTerm && !this.selectedDepartment) {
+                    // Only show error if we have no filters and got empty result
+                    // This might indicate an auth issue
+                    const token = API.getAccessToken();
+                    if (!token) {
+                        this.error = 'نشست شما منقضی شده است. لطفاً صفحه را رفرش کنید یا دوباره وارد شوید.';
+                    }
+                }
+                
+                // Load prerequisites for all unique courses (don't fail if this fails)
+                try {
+                    await this.loadAllPrerequisites();
+                } catch (prereqErr) {
+                    console.warn('Could not load prerequisites:', prereqErr);
+                    // Continue without prerequisites
+                }
             } catch (err) {
-                this.error = err.message || 'خطا در بارگذاری دروس ارائه شده';
+                console.error('Unexpected error loading sections:', err);
+                // Check if it's an auth error
+                if (err.message && (err.message.includes('منقضی') || err.message.includes('دسترسی'))) {
+                    this.error = 'نشست شما منقضی شده است. لطفاً صفحه را رفرش کنید یا دوباره وارد شوید.';
+                } else {
+                    this.error = err.message || 'خطا در بارگذاری دروس ارائه شده';
+                }
+                this.sections = [];
             } finally {
                 this.loading = false;
             }
@@ -57,6 +103,7 @@ function offeredLessonsManager() {
                 this.terms = await API.getTerms();
             } catch (err) {
                 console.error('Error loading terms:', err);
+                this.terms = []; // Set empty array on error
             }
         },
 
@@ -65,6 +112,7 @@ function offeredLessonsManager() {
                 this.departments = await API.getDepartments();
             } catch (err) {
                 console.error('Error loading departments:', err);
+                this.departments = []; // Set empty array on error
             }
         },
 
@@ -73,6 +121,7 @@ function offeredLessonsManager() {
                 this.courses = await API.getCourses();
             } catch (err) {
                 console.error('Error loading courses:', err);
+                this.courses = []; // Set empty array on error
             }
         },
 
@@ -151,6 +200,79 @@ function offeredLessonsManager() {
                 hour: '2-digit',
                 minute: '2-digit'
             });
+        },
+
+        isEnrolled(sectionId) {
+            return this.enrolledSectionIds.has(sectionId);
+        },
+
+        async enrollInSection(sectionId) {
+            if (this.enrolling) return; // Prevent double-click
+            
+            this.enrolling = sectionId;
+            this.error = '';
+            this.success = '';
+            
+            try {
+                const registration = await API.registerForSection(sectionId);
+                // Add to enrolled sections
+                this.enrolledSectionIds.add(sectionId);
+                this.myRegistrations.push(registration);
+                this.success = 'با موفقیت در این درس ثبت نام شدید.';
+                
+                // Clear success message after 3 seconds
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
+            } catch (err) {
+                this.error = err.message || 'خطا در ثبت نام';
+                // Clear error message after 5 seconds
+                setTimeout(() => {
+                    this.error = '';
+                }, 5000);
+            } finally {
+                this.enrolling = null;
+            }
+        },
+
+        async dropCourse(sectionId) {
+            if (this.dropping) return; // Prevent double-click
+            
+            // Find the registration for this section
+            const registration = this.myRegistrations.find(reg => reg.section.id === sectionId);
+            if (!registration) {
+                this.error = 'ثبت نامی برای این درس یافت نشد.';
+                return;
+            }
+            
+            if (!confirm('آیا از حذف این واحد مطمئن هستید؟')) {
+                return;
+            }
+            
+            this.dropping = sectionId;
+            this.error = '';
+            this.success = '';
+            
+            try {
+                await API.dropCourse(registration.id);
+                // Remove from enrolled sections
+                this.enrolledSectionIds.delete(sectionId);
+                this.myRegistrations = this.myRegistrations.filter(reg => reg.id !== registration.id);
+                this.success = 'واحد با موفقیت حذف شد.';
+                
+                // Clear success message after 3 seconds
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
+            } catch (err) {
+                this.error = err.message || 'خطا در حذف واحد';
+                // Clear error message after 5 seconds
+                setTimeout(() => {
+                    this.error = '';
+                }, 5000);
+            } finally {
+                this.dropping = null;
+            }
         }
     }
 }
