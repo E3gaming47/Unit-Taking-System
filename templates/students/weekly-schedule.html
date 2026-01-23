@@ -1,0 +1,119 @@
+{% extends "students/base.html" %}
+
+{% block title %}برنامه هفتگی - سیستم انتخاب واحد{% endblock %}
+
+{% block page_title %}برنامه هفتگی{% endblock %}
+
+{% block schedule_active %}active{% endblock %}
+
+{% block content %}
+<div x-data="weeklyScheduleManager()" x-init="init()">
+    <!-- Alerts -->
+    <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
+    <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="loading">
+        <div class="spinner"></div>
+        <p>در حال بارگذاری...</p>
+    </div>
+
+    <!-- Schedule Content -->
+    <div x-show="!loading && scheduleData" style="margin-top: 20px;">
+        <!-- Term Info -->
+        <div x-show="scheduleData.term" style="background: var(--card-bg); padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+            <h3 style="margin-bottom: 10px; color: var(--primary-color);">اطلاعات ترم</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div>
+                    <strong>نام ترم:</strong> <span x-text="scheduleData.term.name"></span>
+                </div>
+                <div>
+                    <strong>تاریخ شروع:</strong> <span x-text="formatDate(scheduleData.term.start_date)"></span>
+                </div>
+                <div>
+                    <strong>تاریخ پایان:</strong> <span x-text="formatDate(scheduleData.term.end_date)"></span>
+                </div>
+                <div>
+                    <strong>مجموع واحدها:</strong> <span x-text="scheduleData.total_units"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weekly Schedule Table -->
+        <div x-show="scheduleData.schedule" class="table-container">
+            <h3 style="margin-bottom: 15px; color: var(--primary-color);">برنامه هفتگی</h3>
+            <table style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="width: 120px;">روز هفته</th>
+                        <th>کلاس‌ها</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="(dayData, dayName) in scheduleData.schedule" :key="dayName">
+                        <tr>
+                            <td style="font-weight: bold; vertical-align: top; padding: 15px;">
+                                <span x-text="getDayName(dayName)"></span>
+                            </td>
+                            <td style="padding: 15px;">
+                                <template x-if="dayData.classes && dayData.classes.length > 0">
+                                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                                        <template x-for="(classItem, index) in dayData.classes" :key="index">
+                                            <div style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%); padding: 15px; border-radius: 8px; border-right: 4px solid var(--primary-color);">
+                                                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                                                    <div>
+                                                        <strong style="color: var(--primary-color);" x-text="classItem.course_code + ' - ' + classItem.course_title"></strong>
+                                                        <div style="font-size: 13px; color: var(--gray-color); margin-top: 4px;">
+                                                            بخش <span x-text="classItem.section_number"></span> | 
+                                                            <span x-text="classItem.units"></span> واحد
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div style="font-size: 13px; color: var(--gray-color);">زمان:</div>
+                                                        <div style="font-weight: bold;" x-text="formatTimeRange(classItem.start_time, classItem.end_time)"></div>
+                                                    </div>
+                                                    <div>
+                                                        <div style="font-size: 13px; color: var(--gray-color);">مکان:</div>
+                                                        <div x-text="classItem.classroom || 'تعیین نشده'"></div>
+                                                    </div>
+                                                </div>
+                                                <div style="font-size: 13px; color: var(--gray-color); margin-top: 8px;">
+                                                    استاد: <span x-text="classItem.professor"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template x-if="!dayData.classes || dayData.classes.length === 0">
+                                    <div style="text-align: center; padding: 20px; color: var(--gray-color);">
+                                        کلاسی در این روز وجود ندارد
+                                    </div>
+                                </template>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Empty State -->
+        <div x-show="!scheduleData.term" style="text-align: center; padding: 60px; color: var(--gray-color);">
+            <p style="font-size: 18px; margin-bottom: 10px;">ترم فعالی وجود ندارد</p>
+            <p>لطفاً منتظر بمانید تا ترم جدید فعال شود.</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+    
+    @media (max-width: 768px) {
+        table {
+            font-size: 14px;
+        }
+    }
+</style>
+
+<script src="/static/js/student-weekly-schedule.js"></script>
+{% endblock %}
+
