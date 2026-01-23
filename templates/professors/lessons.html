@@ -90,40 +90,118 @@
                     <th>درس</th>
                     <th>شماره بخش</th>
                     <th>ظرفیت</th>
+                    <th>تعداد ثبت‌نام‌ها</th>
                     <th>برنامه کلاسی</th>
                     <th>امتحان</th>
+                    <th>عملیات</th>
                 </tr>
             </thead>
             <tbody>
                 <template x-for="section in sections" :key="section.id">
-                    <tr>
-                        <td x-text="section.term"></td>
-                        <td x-text="section.course"></td>
-                        <td x-text="section.section_number"></td>
-                        <td x-text="section.capacity"></td>
-                        <td>
-                            <template x-if="section.schedules && section.schedules.length > 0">
-                                <div>
-                                    <template x-for="schedule in section.schedules" :key="schedule.id">
-                                        <div x-text="getScheduleText(schedule)" style="margin-bottom: 5px;"></div>
-                                    </template>
+                    <template x-for="(row, index) in [0]" :key="section.id">
+                        <tr>
+                            <td x-text="section.term"></td>
+                            <td x-text="section.course"></td>
+                            <td x-text="section.section_number"></td>
+                            <td x-text="section.capacity"></td>
+                            <td>
+                                <span x-text="getEnrollmentCount(section.id)"></span> / <span x-text="section.capacity"></span>
+                            </td>
+                            <td>
+                                <template x-if="section.schedules && section.schedules.length > 0">
+                                    <div>
+                                        <template x-for="schedule in section.schedules" :key="schedule.id">
+                                            <div x-text="getScheduleText(schedule)" style="margin-bottom: 5px;"></div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <span x-show="!section.schedules || section.schedules.length === 0">-</span>
+                            </td>
+                            <td>
+                                <template x-if="section.exam">
+                                    <div>
+                                        <div x-text="formatDateTime(section.exam.exam_datetime)"></div>
+                                        <div x-show="section.exam.location" x-text="'مکان: ' + section.exam.location" style="font-size: 12px; color: var(--gray-color);"></div>
+                                    </div>
+                                </template>
+                                <span x-show="!section.exam">-</span>
+                            </td>
+                            <td>
+                                <button 
+                                    @click="toggleStudentsModal(section.id)"
+                                    class="btn btn-primary"
+                                    style="padding: 6px 12px; font-size: 13px; margin-bottom: 5px; width: 100%;"
+                                >
+                                    مشاهده دانشجویان
+                                </button>
+                            </td>
+                        </tr>
+                        <!-- Students Modal Row -->
+                        <tr x-show="openSectionId === section.id" style="background: var(--card-bg);">
+                            <td colspan="8" style="padding: 20px;">
+                                <div style="margin-bottom: 15px;">
+                                    <h4 style="margin-bottom: 10px; color: var(--primary-color);">
+                                        لیست دانشجویان ثبت‌نام شده
+                                    </h4>
+                                    <div x-show="loadingStudents === section.id" style="text-align: center; padding: 20px;">
+                                        <div class="spinner" style="margin: 0 auto;"></div>
+                                        <p>در حال بارگذاری...</p>
+                                    </div>
+                                    <div x-show="loadingStudents !== section.id && studentsData[section.id]">
+                                        <div style="margin-bottom: 10px; padding: 10px; background: rgba(37, 99, 235, 0.1); border-radius: 4px;">
+                                            <strong>تعداد کل:</strong> <span x-text="studentsData[section.id].total_count"></span> | 
+                                            <strong>ظرفیت:</strong> <span x-text="studentsData[section.id].capacity"></span> | 
+                                            <strong>جای خالی:</strong> <span x-text="studentsData[section.id].available_spots"></span>
+                                        </div>
+                                        <table style="width: 100%; font-size: 14px;">
+                                            <thead>
+                                                <tr>
+                                                    <th>شماره دانشجویی</th>
+                                                    <th>نام</th>
+                                                    <th>نام خانوادگی</th>
+                                                    <th>ایمیل</th>
+                                                    <th>تاریخ ثبت‌نام</th>
+                                                    <th>عملیات</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template x-if="studentsData[section.id].students && studentsData[section.id].students.length > 0">
+                                                    <template x-for="student in studentsData[section.id].students" :key="student.id">
+                                                        <tr>
+                                                            <td x-text="student.student_id || '-'"></td>
+                                                            <td x-text="student.first_name || '-'"></td>
+                                                            <td x-text="student.last_name || '-'"></td>
+                                                            <td x-text="student.email || '-'"></td>
+                                                            <td x-text="formatDateTime(student.registered_at)"></td>
+                                                            <td>
+                                                                <button 
+                                                                    @click="removeStudent(section.id, student.id)"
+                                                                    class="btn btn-danger"
+                                                                    style="padding: 4px 8px; font-size: 12px;"
+                                                                    :disabled="removingStudent === `${section.id}-${student.id}`"
+                                                                >
+                                                                    <span x-show="removingStudent !== `${section.id}-${student.id}`">حذف</span>
+                                                                    <span x-show="removingStudent === `${section.id}-${student.id}`">در حال حذف...</span>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    </template>
+                                                </template>
+                                                <tr x-show="!studentsData[section.id].students || studentsData[section.id].students.length === 0">
+                                                    <td colspan="6" style="text-align: center; padding: 20px; color: var(--gray-color);">
+                                                        دانشجویی ثبت‌نام نکرده است
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </template>
-                            <span x-show="!section.schedules || section.schedules.length === 0">-</span>
-                        </td>
-                        <td>
-                            <template x-if="section.exam">
-                                <div>
-                                    <div x-text="formatDateTime(section.exam.exam_datetime)"></div>
-                                    <div x-show="section.exam.location" x-text="'مکان: ' + section.exam.location" style="font-size: 12px; color: var(--gray-color);"></div>
-                                </div>
-                            </template>
-                            <span x-show="!section.exam">-</span>
-                        </td>
-                    </tr>
+                            </td>
+                        </tr>
+                    </template>
                 </template>
                 <tr x-show="sections.length === 0">
-                    <td colspan="6" style="text-align: center; padding: 40px; color: var(--gray-color);">
+                    <td colspan="8" style="text-align: center; padding: 40px; color: var(--gray-color);">
                         درسی به شما اختصاص داده نشده است
                     </td>
                 </tr>

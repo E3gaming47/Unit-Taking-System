@@ -8,6 +8,11 @@ function professorLessonsManager() {
         loading: false,
         error: '',
         success: '',
+        // Students data
+        studentsData: {}, // Map of section_id -> students data
+        openSectionId: null, // Currently open section for viewing students
+        loadingStudents: null, // Section ID currently loading students
+        removingStudent: null, // Format: "sectionId-studentId"
         // Filter states
         searchText: '',
         selectedTerm: '',
@@ -117,6 +122,91 @@ function professorLessonsManager() {
                 hour: '2-digit',
                 minute: '2-digit'
             });
+        },
+
+        getEnrollmentCount(sectionId) {
+            if (this.studentsData[sectionId]) {
+                return this.studentsData[sectionId].total_count || 0;
+            }
+            return 0;
+        },
+
+        async toggleStudentsModal(sectionId) {
+            // If clicking the same section, close it
+            if (this.openSectionId === sectionId) {
+                this.openSectionId = null;
+                return;
+            }
+            
+            // Open new section
+            this.openSectionId = sectionId;
+            
+            // If we already have the data, don't reload
+            if (this.studentsData[sectionId]) {
+                return;
+            }
+            
+            // Load students for this section
+            await this.loadEnrolledStudents(sectionId);
+        },
+
+        async loadEnrolledStudents(sectionId) {
+            this.loadingStudents = sectionId;
+            this.error = '';
+            
+            try {
+                const data = await API.getEnrolledStudents(sectionId);
+                this.studentsData[sectionId] = data;
+            } catch (err) {
+                this.error = err.message || 'خطا در بارگذاری لیست دانشجویان';
+                // Clear error after 5 seconds
+                setTimeout(() => {
+                    this.error = '';
+                }, 5000);
+            } finally {
+                this.loadingStudents = null;
+            }
+        },
+
+        async removeStudent(sectionId, studentId) {
+            const key = `${sectionId}-${studentId}`;
+            if (this.removingStudent) return; // Prevent double-click
+            
+            if (!confirm('آیا از حذف این دانشجو از درس مطمئن هستید؟')) {
+                return;
+            }
+            
+            this.removingStudent = key;
+            this.error = '';
+            this.success = '';
+            
+            try {
+                await API.removeStudentFromSection(sectionId, studentId);
+                
+                // Remove student from local data
+                if (this.studentsData[sectionId] && this.studentsData[sectionId].students) {
+                    this.studentsData[sectionId].students = this.studentsData[sectionId].students.filter(
+                        s => s.id !== studentId
+                    );
+                    this.studentsData[sectionId].total_count -= 1;
+                    this.studentsData[sectionId].available_spots += 1;
+                }
+                
+                this.success = 'دانشجو با موفقیت از درس حذف شد.';
+                
+                // Clear success message after 3 seconds
+                setTimeout(() => {
+                    this.success = '';
+                }, 3000);
+            } catch (err) {
+                this.error = err.message || 'خطا در حذف دانشجو';
+                // Clear error message after 5 seconds
+                setTimeout(() => {
+                    this.error = '';
+                }, 5000);
+            } finally {
+                this.removingStudent = null;
+            }
         }
     }
 }
