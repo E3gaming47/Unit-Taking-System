@@ -70,14 +70,18 @@ class Registration(models.Model):
                 # Check if student has passed the prerequisite course
                 prereq_course = prereq.prerequisite_course
                 # Check if student is registered for or has completed any section of the prerequisite course
-                # For now, we'll check if they're registered in the same term or any previous term
+                # Note: Currently checks registration. In a full system, this should check if student PASSED
+                # the prerequisite course (via grading system). For now, registration in a previous term
+                # or current term is considered as having the prerequisite.
                 has_prerequisite = Registration.objects.filter(
                     student=self.student,
                     section__course=prereq_course
+                ).exclude(
+                    section__term=self.section.term  # Exclude current term to ensure it's from a previous term
                 ).exists()
                 
                 if not has_prerequisite:
-                    errors["section"] = f"Prerequisite not met: {prereq_course.code} - {prereq_course.title}"
+                    errors["section"] = f"Prerequisite not met: {prereq_course.code} - {prereq_course.title}. You must have completed this course in a previous term."
         
         # Validate time conflicts
         if self.section_id and self.student_id:
