@@ -95,6 +95,13 @@ def student_offered_lessons(request):
     return render(request, 'students/offered-lessons.html')
 
 
+@login_required
+def student_weekly_schedule(request):
+    if request.user.role != "student":
+        return HttpResponseForbidden()
+    return render(request, 'students/weekly-schedule.html')
+
+
 
 @login_required
 def professor_dashboard(request):
