@@ -218,6 +218,7 @@ class SectionDetailSerializer(serializers.ModelSerializer):
 
     schedules = SectionScheduleSerializer(many=True, read_only=True)
     exam = SectionExamSerializer(read_only=True)
+    enrollment_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Section
@@ -231,4 +232,14 @@ class SectionDetailSerializer(serializers.ModelSerializer):
             "capacity",
             "schedules",
             "exam",
+            "enrollment_count",
         ]
+    
+    def get_enrollment_count(self, obj):
+        """Get the count of enrolled students for this section"""
+        # Check if registrations are prefetched (they will be a list/queryset)
+        # When prefetched, obj._prefetched_objects_cache will contain the cached data
+        if hasattr(obj, '_prefetched_objects_cache') and 'registrations' in obj._prefetched_objects_cache:
+            return len(obj._prefetched_objects_cache['registrations'])
+        # Otherwise, use the related manager (will hit DB)
+        return obj.registrations.count()

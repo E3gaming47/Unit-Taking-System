@@ -6,8 +6,17 @@
     <title>{% block title %}پنل استاد - سیستم انتخاب واحد{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/shabnam-font@latest/dist/font-face.css">
     <link rel="stylesheet" href="/static/css/admin.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="/static/js/api.js"></script>
+    {% block page_scripts %}{% endblock %}
+    <script>
+        // Ensure scripts are loaded before Alpine.js
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof professorLessonsManager === 'undefined') {
+                console.error('professorLessonsManager not found!');
+            }
+        });
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body>
     <div class="container">

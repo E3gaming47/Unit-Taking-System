@@ -1,33 +1,37 @@
-// Professor Lessons component
+// Professor Lessons Management Component
 function professorLessonsManager() {
     return {
         sections: [],
         terms: [],
         departments: [],
-        professorId: null,
         loading: false,
         error: '',
         success: '',
-        // Students modal
-        showStudentsModal: false,
-        currentSectionId: null,
-        currentSectionData: null,
-        studentsData: {}, // Cache for student data
-        loadingStudents: false, // Boolean flag for loading state
-        removingStudent: null, // Format: "sectionId-studentId"
-        // Filter states
         searchText: '',
         selectedTerm: '',
         selectedDepartment: '',
+        
+        // Students Modal
+        showStudentsModal: false,
+        currentSectionId: null,
+        enrolledStudents: [],
+        loadingStudents: false,
+        currentSectionInfo: {
+            course: '-',
+            section_number: '-',
+            total_count: 0,
+            capacity: 0,
+            available_spots: 0
+        },
+        removingStudent: null,
 
         async init() {
-            // Get current professor ID from stored user data
             const storedUser = API.getStoredUser();
-            if (storedUser && storedUser.id) {
-                this.professorId = storedUser.id;
+            if (!storedUser || !storedUser.id) {
+                this.error = 'خطا در دریافت اطلاعات کاربر';
+                return;
             }
             
-            // Load initial data
             await Promise.all([
                 this.loadSections(),
                 this.loadTerms(),
@@ -36,22 +40,13 @@ function professorLessonsManager() {
         },
 
         async loadSections() {
-            if (!this.professorId) {
-                return;
-            }
             this.loading = true;
             this.error = '';
             try {
                 const params = {};
-                if (this.selectedTerm) {
-                    params.term = this.selectedTerm;
-                }
-                if (this.selectedDepartment) {
-                    params.department = this.selectedDepartment;
-                }
-                if (this.searchText) {
-                    params.search = this.searchText;
-                }
+                if (this.selectedTerm) params.term = this.selectedTerm;
+                if (this.selectedDepartment) params.department = this.selectedDepartment;
+                if (this.searchText) params.search = this.searchText;
                 
                 this.sections = await API.getMySections(params);
             } catch (err) {
@@ -77,19 +72,26 @@ function professorLessonsManager() {
             }
         },
 
-        async applyFilters() {
-            await this.loadSections();
+        applyFilters() {
+            this.loadSections();
+        },
+
+        clearFilters() {
+            this.searchText = '';
+            this.selectedTerm = '';
+            this.selectedDepartment = '';
+            this.loadSections();
+        },
+
+        getEnrollmentCount(sectionId) {
+            const section = this.sections.find(s => s.id === sectionId);
+            return section?.enrollment_count ?? 0;
         },
 
         getScheduleText(schedule) {
             const dayNames = {
-                1: 'شنبه',
-                2: 'یکشنبه',
-                3: 'دوشنبه',
-                4: 'سه‌شنبه',
-                5: 'چهارشنبه',
-                6: 'پنج‌شنبه',
-                0: 'جمعه'
+                1: 'شنبه', 2: 'یکشنبه', 3: 'دوشنبه', 4: 'سه‌شنبه',
+                5: 'چهارشنبه', 6: 'پنج‌شنبه', 0: 'جمعه'
             };
             const day = dayNames[schedule.day_of_week] || schedule.day_of_week;
             const timeSlot = schedule.time_slot || '';
@@ -107,84 +109,64 @@ function professorLessonsManager() {
             }
         },
 
-        getEnrollmentCount(sectionId) {
-            const data = this.studentsData?.[sectionId] || this.studentsData?.[String(sectionId)];
-            return data?.total_count || 0;
-        },
-
-        async openStudentsModal(sectionId) {
+        openStudentsModal(sectionId) {
             this.currentSectionId = parseInt(sectionId);
-            this.showStudentsModal = true;
+            this.enrolledStudents = [];
+            this.currentSectionInfo = {
+                course: '-',
+                section_number: '-',
+                total_count: 0,
+                capacity: 0,
+                available_spots: 0
+            };
             this.error = '';
             this.success = '';
-            
-            // Check if we already have data for this section
-            const cachedData = this.studentsData?.[this.currentSectionId] || this.studentsData?.[String(this.currentSectionId)];
-            if (cachedData) {
-                this.currentSectionData = cachedData;
-                return;
-            }
-            
-            // Load students
-            await this.loadEnrolledStudents(this.currentSectionId);
+            this.showStudentsModal = true;
+            this.loadStudents();
         },
 
         closeStudentsModal() {
             this.showStudentsModal = false;
             this.currentSectionId = null;
-            this.currentSectionData = null;
+            this.enrolledStudents = [];
+            this.currentSectionInfo = {
+                course: '-',
+                section_number: '-',
+                total_count: 0,
+                capacity: 0,
+                available_spots: 0
+            };
             this.error = '';
             this.success = '';
         },
 
-        async loadEnrolledStudents(sectionId) {
+        async loadStudents() {
+            if (!this.currentSectionId) return;
+            
             this.loadingStudents = true;
             this.error = '';
             
             try {
-                const data = await API.getEnrolledStudents(sectionId);
+                const data = await API.getEnrolledStudents(this.currentSectionId);
                 
-                if (data && typeof data === 'object' && 'students' in data) {
-                    const newData = {
-                        section: data.section || { id: sectionId },
-                        students: Array.isArray(data.students) ? data.students : [],
-                        total_count: data.total_count || (Array.isArray(data.students) ? data.students.length : 0),
-                        capacity: data.capacity || 0,
-                        available_spots: data.available_spots || 0
-                    };
-                    
-                    // Store in cache
-                    if (!this.studentsData) {
-                        this.studentsData = {};
-                    }
-                    this.studentsData[sectionId] = newData;
-                    this.studentsData[String(sectionId)] = newData;
-                    
-                    // Set current data for modal
-                    this.currentSectionData = newData;
-                } else {
-                    // Empty structure
-                    const emptyData = {
-                        section: { id: sectionId },
-                        students: [],
-                        total_count: 0,
-                        capacity: 0,
-                        available_spots: 0
-                    };
-                    if (!this.studentsData) {
-                        this.studentsData = {};
-                    }
-                    this.studentsData[sectionId] = emptyData;
-                    this.studentsData[String(sectionId)] = emptyData;
-                    this.currentSectionData = emptyData;
+                this.enrolledStudents = Array.isArray(data.students) ? data.students : [];
+                this.currentSectionInfo = {
+                    course: data.section?.course || '-',
+                    section_number: data.section?.section_number || '-',
+                    total_count: data.total_count || 0,
+                    capacity: data.capacity || 0,
+                    available_spots: data.available_spots || 0
+                };
+                
+                // Update enrollment count in sections array
+                const sectionIndex = this.sections.findIndex(s => s.id === this.currentSectionId);
+                if (sectionIndex !== -1) {
+                    this.sections[sectionIndex].enrollment_count = data.total_count || 0;
                 }
             } catch (err) {
                 console.error('Error loading enrolled students:', err);
                 this.error = err.message || 'خطا در بارگذاری لیست دانشجویان';
-                this.currentSectionData = null;
-                setTimeout(() => {
-                    this.error = '';
-                }, 5000);
+                this.enrolledStudents = [];
             } finally {
                 this.loadingStudents = false;
             }
@@ -192,9 +174,7 @@ function professorLessonsManager() {
 
         async removeStudent(sectionId, studentId) {
             const key = `${sectionId}-${studentId}`;
-            if (this.removingStudent === key) {
-                return;
-            }
+            if (this.removingStudent === key) return;
             
             if (!confirm('آیا از حذف این دانشجو از درس مطمئن هستید؟')) {
                 return;
@@ -207,21 +187,19 @@ function professorLessonsManager() {
             try {
                 await API.removeStudentFromSection(sectionId, studentId);
                 this.success = 'دانشجو با موفقیت حذف شد.';
-                
-                // Reload students list
-                await this.loadEnrolledStudents(sectionId);
-                
-                setTimeout(() => {
-                    this.success = '';
-                }, 3000);
+                await this.loadStudents();
+                setTimeout(() => { this.success = ''; }, 3000);
             } catch (err) {
                 this.error = err.message || 'خطا در حذف دانشجو';
-                setTimeout(() => {
-                    this.error = '';
-                }, 5000);
+                setTimeout(() => { this.error = ''; }, 5000);
             } finally {
                 this.removingStudent = null;
             }
-        },
+        }
     };
+}
+
+// Make sure the function is available globally for Alpine.js
+if (typeof window !== 'undefined') {
+    window.professorLessonsManager = professorLessonsManager;
 }
