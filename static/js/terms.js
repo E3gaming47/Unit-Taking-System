@@ -8,7 +8,7 @@ function termsManager() {
         showModal: false,
         editingId: null,
         orderBy: 'start_date', // Default ordering field
-        orderDirection: 'desc', // 'asc' or 'desc' (default desc to show newest first)
+        orderDirection: 'desc', // Default direction
         form: {
             name: '',
             start_date: '',
@@ -37,16 +37,36 @@ function termsManager() {
                 }
                 
                 const termsData = await API.getTerms(params);
-                // Add computed properties for status display
-                this.terms = termsData.map(term => {
-                    const status = term.status || 'planning';
+                console.log('Raw terms data from API:', termsData);
+                
+                // Create completely new array with normalized data
+                const mappedTerms = termsData.map(term => {
+                    const status = (term.status || 'planning').toLowerCase();
+                    const isActive = term.is_active === true || term.is_active === 'true' || term.is_active === 1 || term.is_active === '1';
+                    
                     return {
-                        ...term,
+                        id: term.id,
+                        name: term.name,
+                        start_date: term.start_date,
+                        end_date: term.end_date,
+                        registration_start: term.registration_start,
+                        registration_end: term.registration_end,
+                        min_units: term.min_units,
+                        max_units: term.max_units,
+                        status: status,
+                        is_active: isActive,
                         statusLabel: this.getStatusLabel(status),
                         statusStyle: this.getStatusStyle(status)
                     };
                 });
+                
+                // Force complete replacement
+                this.terms = mappedTerms;
+                
+                console.log('Terms loaded:', this.terms.length);
+                console.log('Sample term:', this.terms[0]);
             } catch (err) {
+                console.error('Error loading terms:', err);
                 this.error = err.message || 'خطا در بارگذاری ترم‌ها';
             } finally {
                 this.loading = false;
@@ -79,14 +99,11 @@ function termsManager() {
                 status: 'planning'
             };
             this.error = '';
-            this.success = '';
             this.showModal = true;
         },
 
         openEditModal(term) {
             this.editingId = term.id;
-            // Log term to debug
-            console.log('Editing term:', term);
             this.form = {
                 name: term.name,
                 start_date: term.start_date,
@@ -98,7 +115,6 @@ function termsManager() {
                 status: term.status || 'planning'
             };
             this.error = '';
-            this.success = '';
             this.showModal = true;
         },
 
@@ -185,14 +201,21 @@ function termsManager() {
             this.error = '';
             this.success = '';
             try {
+                console.log('Activating term:', id);
                 await API.activateTerm(id);
+                console.log('Activate successful, reloading terms...');
+                
+                // Force reload with a small delay to ensure backend has updated
+                await new Promise(resolve => setTimeout(resolve, 100));
+                await this.loadTerms();
+                
                 this.success = 'ترم با موفقیت فعال شد';
                 this.error = '';
-                await this.loadTerms();
                 setTimeout(() => {
                     this.success = '';
                 }, 3000);
             } catch (err) {
+                console.error('Activate error:', err);
                 this.error = err.message || 'خطا در فعال کردن ترم';
                 this.success = '';
             }
@@ -202,14 +225,21 @@ function termsManager() {
             this.error = '';
             this.success = '';
             try {
+                console.log('Deactivating term:', id);
                 await API.deactivateTerm(id);
+                console.log('Deactivate successful, reloading terms...');
+                
+                // Force reload with a small delay to ensure backend has updated
+                await new Promise(resolve => setTimeout(resolve, 100));
+                await this.loadTerms();
+                
                 this.success = 'ترم با موفقیت غیرفعال شد';
                 this.error = '';
-                await this.loadTerms();
                 setTimeout(() => {
                     this.success = '';
                 }, 3000);
             } catch (err) {
+                console.error('Deactivate error:', err);
                 this.error = err.message || 'خطا در غیرفعال کردن ترم';
                 this.success = '';
             }
@@ -226,62 +256,55 @@ function termsManager() {
             if (!status) {
                 return 'در حال برنامه‌ریزی';
             }
-            const labels = {
+            
+            const statusLower = String(status).toLowerCase();
+            const statusMap = {
                 'planning': 'در حال برنامه‌ریزی',
                 'ready': 'آماده',
                 'active': 'فعال',
                 'archived': 'بایگانی شده'
             };
-            return labels[status] || status || 'در حال برنامه‌ریزی';
+            
+            return statusMap[statusLower] || 'در حال برنامه‌ریزی';
         },
 
         getStatusStyle(status) {
-            // Handle null/undefined status - default to planning
             if (!status) {
-                status = 'planning';
+                return 'color: var(--gray-color);';
             }
+            
+            const statusLower = String(status).toLowerCase();
             const styleMap = {
                 'planning': 'color: var(--gray-color);',
-                'ready': 'color: var(--primary-color); font-weight: bold;',
+                'ready': 'color: var(--info);',
                 'active': 'color: var(--success); font-weight: bold;',
                 'archived': 'color: var(--gray-color);'
             };
-            return styleMap[status] || styleMap['planning'] || '';
+            
+            return styleMap[statusLower] || 'color: var(--gray-color);';
         },
 
         async setStatusReady(id) {
             this.error = '';
             this.success = '';
             try {
-                // Update term status to READY
+                // Update term status to ready
                 const term = this.terms.find(t => t.id === id);
-                if (!term) {
-                    this.error = 'ترم یافت نشد';
-                    return;
+                if (term) {
+                    await API.updateTerm(id, {
+                        ...term,
+                        status: 'ready'
+                    });
+                    this.success = 'وضعیت ترم به READY تغییر یافت';
+                    await this.loadTerms();
+                    setTimeout(() => {
+                        this.success = '';
+                    }, 3000);
                 }
-                
-                const data = {
-                    name: term.name,
-                    start_date: term.start_date,
-                    end_date: term.end_date,
-                    registration_start: term.registration_start,
-                    registration_end: term.registration_end,
-                    min_units: term.min_units || 0,
-                    max_units: term.max_units || 20,
-                    status: 'ready'
-                };
-                
-                await API.updateTerm(id, data);
-                this.success = 'وضعیت ترم به "آماده" تغییر یافت. اکنون می‌توانید آن را فعال کنید.';
-                await this.loadTerms();
-                setTimeout(() => {
-                    this.success = '';
-                }, 3000);
             } catch (err) {
                 this.error = err.message || 'خطا در تغییر وضعیت ترم';
                 this.success = '';
             }
         }
-    }
+    };
 }
-

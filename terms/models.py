@@ -80,8 +80,10 @@ class Term(models.Model):
                 errors.setdefault("status", "فعال‌سازی ترم فقط داخل بازه ترم مجاز است.")
 
         elif self.status in (Term.TermStatus.PLANNING, Term.TermStatus.READY):
-            if today >= self.start_date:
-                errors.setdefault("status", "وضعیت این ترم فقط قبل از شروع ترم مجاز است.")
+            # Allow setting status to READY/PLANNING at any time
+            # This allows admins to deactivate terms even if they've started
+            # No validation needed - admins should be able to change status freely
+            pass
 
         elif self.status == Term.TermStatus.ARCHIVED:
             if today <= self.end_date:
@@ -91,9 +93,8 @@ class Term(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-        if self.is_active and self.status != Term.TermStatus.ACTIVE:
-            self.status = Term.TermStatus.ACTIVE
-
+        # Update is_active based on status
+        # But don't force status to ACTIVE if is_active is True - allow manual deactivation
         if self.status == Term.TermStatus.ACTIVE:
             self.is_active = True
         else:
@@ -103,6 +104,8 @@ class Term(models.Model):
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
+        # Only prevent deletion of active terms
+        # Allow deletion of non-active terms regardless of date range
         if self.is_active:
             raise ValidationError("امکان حذف ترم فعال وجود ندارد.")
         return super().delete(*args, **kwargs)

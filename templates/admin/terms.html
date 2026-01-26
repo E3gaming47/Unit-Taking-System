@@ -82,13 +82,13 @@
                                 <button class="btn btn-secondary" style="padding:6px 12px;" @click="openEditModal(term)" title="ویرایش">
                                     <i class="fas fa-edit"></i> ویرایش
                                 </button>
-                                <button x-show="term.is_active" class="btn btn-secondary" style="padding:6px 12px;" @click="deactivateTerm(term.id)" title="غیرفعال کردن">
+                                <button x-show="term.is_active === true || term.is_active === 'true'" class="btn btn-secondary" style="padding:6px 12px;" @click="deactivateTerm(term.id)" title="غیرفعال کردن">
                                     <i class="fas fa-toggle-on"></i> غیرفعال کردن
                                 </button>
-                                <button x-show="!term.is_active && (term.status === 'ready' || term.status === 'Ready')" class="btn btn-primary" style="padding:6px 12px;" @click="activateTerm(term.id)" title="فعال کردن">
+                                <button x-show="(term.is_active === false || term.is_active === 'false' || !term.is_active) && (term.status === 'ready' || term.status === 'Ready' || term.status === 'READY')" class="btn btn-primary" style="padding:6px 12px;" @click="activateTerm(term.id)" title="فعال کردن">
                                     <i class="fas fa-toggle-on"></i> فعال کردن
                                 </button>
-                                <button x-show="!term.is_active && term.status !== 'ready' && term.status !== 'Ready' && term.status !== 'active' && term.status !== 'Active'" class="btn btn-info" style="padding:6px 12px; background-color: #17a2b8; color: white; border: none;" @click="setStatusReady(term.id)" title="تنظیم وضعیت به READY">
+                                <button x-show="(term.is_active === false || term.is_active === 'false' || !term.is_active) && term.status !== 'ready' && term.status !== 'Ready' && term.status !== 'READY' && term.status !== 'active' && term.status !== 'Active' && term.status !== 'ACTIVE'" class="btn btn-info" style="padding:6px 12px; background-color: #17a2b8; color: white; border: none;" @click="setStatusReady(term.id)" title="تنظیم وضعیت به READY">
                                     <i class="fas fa-check"></i> آماده‌سازی
                                 </button>
                                 <button class="btn btn-danger" style="padding:6px 12px;" @click="deleteTerm(term.id, term.name)" :disabled="term.is_active" title="حذف">

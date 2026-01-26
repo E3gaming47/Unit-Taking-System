@@ -98,8 +98,7 @@
             </thead>
             <tbody>
                 <template x-for="section in sections" :key="section.id">
-                    <template x-for="(row, index) in [0]" :key="section.id">
-                        <tr>
+                    <tr>
                             <td x-text="section.term"></td>
                             <td x-text="section.course"></td>
                             <td x-text="section.section_number"></td>
@@ -128,7 +127,7 @@
                             </td>
                             <td>
                                 <button 
-                                    @click="toggleStudentsModal(section.id)"
+                                    @click="openStudentsModal(section.id)"
                                     class="btn btn-primary"
                                     style="padding: 6px 12px; font-size: 13px; margin-bottom: 5px; width: 100%;"
                                 >
@@ -136,69 +135,6 @@
                                 </button>
                             </td>
                         </tr>
-                        <!-- Students Modal Row -->
-                        <tr x-show="openSectionId === section.id" style="background: var(--card-bg);">
-                            <td colspan="8" style="padding: 20px;">
-                                <div style="margin-bottom: 15px;">
-                                    <h4 style="margin-bottom: 10px; color: var(--primary-color);">
-                                        لیست دانشجویان ثبت‌نام شده
-                                    </h4>
-                                    <div x-show="loadingStudents === section.id" style="text-align: center; padding: 20px;">
-                                        <div class="spinner" style="margin: 0 auto;"></div>
-                                        <p>در حال بارگذاری...</p>
-                                    </div>
-                                    <div x-show="loadingStudents !== section.id && studentsData[section.id]">
-                                        <div style="margin-bottom: 10px; padding: 10px; background: rgba(37, 99, 235, 0.1); border-radius: 4px;">
-                                            <strong>تعداد کل:</strong> <span x-text="studentsData[section.id].total_count"></span> | 
-                                            <strong>ظرفیت:</strong> <span x-text="studentsData[section.id].capacity"></span> | 
-                                            <strong>جای خالی:</strong> <span x-text="studentsData[section.id].available_spots"></span>
-                                        </div>
-                                        <table style="width: 100%; font-size: 14px;">
-                                            <thead>
-                                                <tr>
-                                                    <th>شماره دانشجویی</th>
-                                                    <th>نام</th>
-                                                    <th>نام خانوادگی</th>
-                                                    <th>ایمیل</th>
-                                                    <th>تاریخ ثبت‌نام</th>
-                                                    <th>عملیات</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <template x-if="studentsData[section.id].students && studentsData[section.id].students.length > 0">
-                                                    <template x-for="student in studentsData[section.id].students" :key="student.id">
-                                                        <tr>
-                                                            <td x-text="student.student_id || '-'"></td>
-                                                            <td x-text="student.first_name || '-'"></td>
-                                                            <td x-text="student.last_name || '-'"></td>
-                                                            <td x-text="student.email || '-'"></td>
-                                                            <td x-text="formatDateTime(student.registered_at)"></td>
-                                                            <td>
-                                                                <button 
-                                                                    @click="removeStudent(section.id, student.id)"
-                                                                    class="btn btn-danger"
-                                                                    style="padding: 4px 8px; font-size: 12px;"
-                                                                    :disabled="removingStudent === `${section.id}-${student.id}`"
-                                                                >
-                                                                    <span x-show="removingStudent !== `${section.id}-${student.id}`">حذف</span>
-                                                                    <span x-show="removingStudent === `${section.id}-${student.id}`">در حال حذف...</span>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    </template>
-                                                </template>
-                                                <tr x-show="!studentsData[section.id].students || studentsData[section.id].students.length === 0">
-                                                    <td colspan="6" style="text-align: center; padding: 20px; color: var(--gray-color);">
-                                                        دانشجویی ثبت‌نام نکرده است
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    </template>
                 </template>
                 <tr x-show="sections.length === 0">
                     <td colspan="8" style="text-align: center; padding: 40px; color: var(--gray-color);">
@@ -207,6 +143,76 @@
                 </tr>
             </tbody>
         </table>
+    </div>
+
+    <!-- Students Modal -->
+    <div class="modal" :class="{ active: showStudentsModal }" @click.self="closeStudentsModal()" style="z-index: 1000;">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2>لیست دانشجویان ثبت‌نام شده</h2>
+                <button class="modal-close" @click="closeStudentsModal()">×</button>
+            </div>
+            
+            <div x-show="error" x-cloak class="alert alert-error" x-text="error" style="margin-bottom: 20px;"></div>
+            <div x-show="success" x-cloak class="alert alert-success" x-text="success" style="margin-bottom: 20px;"></div>
+
+            <div x-show="loadingStudents" style="text-align: center; padding: 40px;">
+                <div class="spinner" style="margin: 0 auto;"></div>
+                <p>در حال بارگذاری...</p>
+            </div>
+
+            <div x-show="!loadingStudents && currentSectionData">
+                <div style="margin-bottom: 15px; padding: 15px; background: rgba(37, 99, 235, 0.1); border-radius: 4px;">
+                    <strong>درس:</strong> <span x-text="currentSectionData.section ? currentSectionData.section.course : '-'"></span><br>
+                    <strong>بخش:</strong> <span x-text="currentSectionData.section ? currentSectionData.section.section_number : '-'"></span><br>
+                    <strong>تعداد کل:</strong> <span x-text="currentSectionData.total_count || 0"></span> | 
+                    <strong>ظرفیت:</strong> <span x-text="currentSectionData.capacity || 0"></span> | 
+                    <strong>جای خالی:</strong> <span x-text="currentSectionData.available_spots || 0"></span>
+                </div>
+                
+                <table style="width: 100%; font-size: 14px;">
+                    <thead>
+                        <tr>
+                            <th>شماره دانشجویی</th>
+                            <th>نام</th>
+                            <th>نام خانوادگی</th>
+                            <th>ایمیل</th>
+                            <th>تاریخ ثبت‌نام</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-if="currentSectionData && currentSectionData.students && currentSectionData.students.length > 0">
+                            <template x-for="student in currentSectionData.students" :key="student.id">
+                                <tr>
+                                    <td x-text="student.student_id || '-'"></td>
+                                    <td x-text="student.first_name || '-'"></td>
+                                    <td x-text="student.last_name || '-'"></td>
+                                    <td x-text="student.email || '-'"></td>
+                                    <td x-text="formatDateTime(student.registered_at)"></td>
+                                    <td>
+                                        <button 
+                                            @click="removeStudent(currentSectionId, student.id)"
+                                            class="btn btn-danger"
+                                            style="padding: 4px 8px; font-size: 12px;"
+                                            :disabled="removingStudent === `${currentSectionId}-${student.id}`"
+                                        >
+                                            <span x-show="removingStudent !== `${currentSectionId}-${student.id}`">حذف</span>
+                                            <span x-show="removingStudent === `${currentSectionId}-${student.id}`">در حال حذف...</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                        <tr x-show="!currentSectionData || !currentSectionData.students || currentSectionData.students.length === 0">
+                            <td colspan="6" style="text-align: center; padding: 20px; color: var(--gray-color);">
+                                دانشجویی ثبت‌نام نکرده است
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 

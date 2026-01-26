@@ -8,10 +8,12 @@ function professorLessonsManager() {
         loading: false,
         error: '',
         success: '',
-        // Students data
-        studentsData: {}, // Map of section_id -> students data
-        openSectionId: null, // Currently open section for viewing students
-        loadingStudents: null, // Section ID currently loading students
+        // Students modal
+        showStudentsModal: false,
+        currentSectionId: null,
+        currentSectionData: null,
+        studentsData: {}, // Cache for student data
+        loadingStudents: false, // Boolean flag for loading state
         removingStudent: null, // Format: "sectionId-studentId"
         // Filter states
         searchText: '',
@@ -23,11 +25,9 @@ function professorLessonsManager() {
             const storedUser = API.getStoredUser();
             if (storedUser && storedUser.id) {
                 this.professorId = storedUser.id;
-            } else {
-                this.error = 'اطلاعات کاربر یافت نشد. لطفاً دوباره وارد شوید.';
-                return;
             }
-
+            
+            // Load initial data
             await Promise.all([
                 this.loadSections(),
                 this.loadTerms(),
@@ -39,27 +39,21 @@ function professorLessonsManager() {
             if (!this.professorId) {
                 return;
             }
-
             this.loading = true;
             this.error = '';
             try {
-                const params = {
-                    professor: this.professorId  // Filter by current professor
-                };
-                
-                if (this.searchText && this.searchText.trim()) {
-                    params.search = this.searchText.trim();
-                }
-                
+                const params = {};
                 if (this.selectedTerm) {
                     params.term = this.selectedTerm;
                 }
-                
                 if (this.selectedDepartment) {
                     params.department = this.selectedDepartment;
                 }
+                if (this.searchText) {
+                    params.search = this.searchText;
+                }
                 
-                this.sections = await API.getSections(params);
+                this.sections = await API.getMySections(params);
             } catch (err) {
                 this.error = err.message || 'خطا در بارگذاری دروس';
             } finally {
@@ -83,94 +77,124 @@ function professorLessonsManager() {
             }
         },
 
-        applyFilters() {
-            this.loadSections();
-        },
-
-        clearFilters() {
-            this.searchText = '';
-            this.selectedTerm = '';
-            this.selectedDepartment = '';
-            this.loadSections();
+        async applyFilters() {
+            await this.loadSections();
         },
 
         getScheduleText(schedule) {
-            const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
-            const dayName = days[schedule.day_of_week] || schedule.day_of_week;
-            const startTime = this.formatTime(schedule.start_time);
-            const endTime = this.formatTime(schedule.end_time);
-            let text = `${dayName}: ${startTime} - ${endTime}`;
-            if (schedule.location) {
-                text += ` (${schedule.location})`;
+            const dayNames = {
+                1: 'شنبه',
+                2: 'یکشنبه',
+                3: 'دوشنبه',
+                4: 'سه‌شنبه',
+                5: 'چهارشنبه',
+                6: 'پنج‌شنبه',
+                0: 'جمعه'
+            };
+            const day = dayNames[schedule.day_of_week] || schedule.day_of_week;
+            const timeSlot = schedule.time_slot || '';
+            const location = schedule.location || (schedule.classroom ? String(schedule.classroom) : 'نامشخص');
+            return `${day} ${timeSlot} - ${location}`;
+        },
+
+        formatDateTime(datetimeStr) {
+            if (!datetimeStr) return '-';
+            try {
+                const dt = new Date(datetimeStr);
+                return dt.toLocaleString('fa-IR');
+            } catch (e) {
+                return datetimeStr;
             }
-            return text;
-        },
-
-        formatTime(timeString) {
-            if (!timeString) return '-';
-            const time = new Date('2000-01-01T' + timeString);
-            return time.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-        },
-
-        formatDateTime(dateTimeString) {
-            if (!dateTimeString) return '-';
-            const date = new Date(dateTimeString);
-            return date.toLocaleString('fa-IR', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
         },
 
         getEnrollmentCount(sectionId) {
-            if (this.studentsData[sectionId]) {
-                return this.studentsData[sectionId].total_count || 0;
-            }
-            return 0;
+            const data = this.studentsData?.[sectionId] || this.studentsData?.[String(sectionId)];
+            return data?.total_count || 0;
         },
 
-        async toggleStudentsModal(sectionId) {
-            // If clicking the same section, close it
-            if (this.openSectionId === sectionId) {
-                this.openSectionId = null;
+        async openStudentsModal(sectionId) {
+            this.currentSectionId = parseInt(sectionId);
+            this.showStudentsModal = true;
+            this.error = '';
+            this.success = '';
+            
+            // Check if we already have data for this section
+            const cachedData = this.studentsData?.[this.currentSectionId] || this.studentsData?.[String(this.currentSectionId)];
+            if (cachedData) {
+                this.currentSectionData = cachedData;
                 return;
             }
             
-            // Open new section
-            this.openSectionId = sectionId;
-            
-            // If we already have the data, don't reload
-            if (this.studentsData[sectionId]) {
-                return;
-            }
-            
-            // Load students for this section
-            await this.loadEnrolledStudents(sectionId);
+            // Load students
+            await this.loadEnrolledStudents(this.currentSectionId);
+        },
+
+        closeStudentsModal() {
+            this.showStudentsModal = false;
+            this.currentSectionId = null;
+            this.currentSectionData = null;
+            this.error = '';
+            this.success = '';
         },
 
         async loadEnrolledStudents(sectionId) {
-            this.loadingStudents = sectionId;
+            this.loadingStudents = true;
             this.error = '';
             
             try {
                 const data = await API.getEnrolledStudents(sectionId);
-                this.studentsData[sectionId] = data;
+                
+                if (data && typeof data === 'object' && 'students' in data) {
+                    const newData = {
+                        section: data.section || { id: sectionId },
+                        students: Array.isArray(data.students) ? data.students : [],
+                        total_count: data.total_count || (Array.isArray(data.students) ? data.students.length : 0),
+                        capacity: data.capacity || 0,
+                        available_spots: data.available_spots || 0
+                    };
+                    
+                    // Store in cache
+                    if (!this.studentsData) {
+                        this.studentsData = {};
+                    }
+                    this.studentsData[sectionId] = newData;
+                    this.studentsData[String(sectionId)] = newData;
+                    
+                    // Set current data for modal
+                    this.currentSectionData = newData;
+                } else {
+                    // Empty structure
+                    const emptyData = {
+                        section: { id: sectionId },
+                        students: [],
+                        total_count: 0,
+                        capacity: 0,
+                        available_spots: 0
+                    };
+                    if (!this.studentsData) {
+                        this.studentsData = {};
+                    }
+                    this.studentsData[sectionId] = emptyData;
+                    this.studentsData[String(sectionId)] = emptyData;
+                    this.currentSectionData = emptyData;
+                }
             } catch (err) {
+                console.error('Error loading enrolled students:', err);
                 this.error = err.message || 'خطا در بارگذاری لیست دانشجویان';
-                // Clear error after 5 seconds
+                this.currentSectionData = null;
                 setTimeout(() => {
                     this.error = '';
                 }, 5000);
             } finally {
-                this.loadingStudents = null;
+                this.loadingStudents = false;
             }
         },
 
         async removeStudent(sectionId, studentId) {
             const key = `${sectionId}-${studentId}`;
-            if (this.removingStudent) return; // Prevent double-click
+            if (this.removingStudent === key) {
+                return;
+            }
             
             if (!confirm('آیا از حذف این دانشجو از درس مطمئن هستید؟')) {
                 return;
@@ -182,32 +206,22 @@ function professorLessonsManager() {
             
             try {
                 await API.removeStudentFromSection(sectionId, studentId);
+                this.success = 'دانشجو با موفقیت حذف شد.';
                 
-                // Remove student from local data
-                if (this.studentsData[sectionId] && this.studentsData[sectionId].students) {
-                    this.studentsData[sectionId].students = this.studentsData[sectionId].students.filter(
-                        s => s.id !== studentId
-                    );
-                    this.studentsData[sectionId].total_count -= 1;
-                    this.studentsData[sectionId].available_spots += 1;
-                }
+                // Reload students list
+                await this.loadEnrolledStudents(sectionId);
                 
-                this.success = 'دانشجو با موفقیت از درس حذف شد.';
-                
-                // Clear success message after 3 seconds
                 setTimeout(() => {
                     this.success = '';
                 }, 3000);
             } catch (err) {
                 this.error = err.message || 'خطا در حذف دانشجو';
-                // Clear error message after 5 seconds
                 setTimeout(() => {
                     this.error = '';
                 }, 5000);
             } finally {
                 this.removingStudent = null;
             }
-        }
-    }
+        },
+    };
 }
-

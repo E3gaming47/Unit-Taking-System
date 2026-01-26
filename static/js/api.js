@@ -28,11 +28,27 @@ const API = {
     async handleResponse(response, skipRedirect = true) {
         let data;
         try {
-            data = await response.json();
+            // Check content type before trying to parse JSON
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                // If not JSON and response is ok, return null (e.g., empty DELETE response)
+                if (response.ok) {
+                    return null;
+                }
+                // If error and not JSON, try to get text
+                const text = await response.text();
+                throw new Error(text || 'خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.');
+            }
         } catch (e) {
             // If response is not JSON (e.g., empty response for DELETE)
-            if (response.ok) {
+            if (response.ok && e.name === 'SyntaxError') {
                 return null;
+            }
+            // If it's already an Error object, re-throw it
+            if (e instanceof Error && e.message !== 'خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.') {
+                throw e;
             }
             throw new Error('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.');
         }
@@ -949,9 +965,36 @@ const API = {
     async getEnrolledStudents(sectionId) {
         try {
             const response = await this.request(`${this.baseURL}/offerings/sections/${sectionId}/enrolled-students/`, { method: 'GET' });
-            return await this.handleResponse(response);
+            
+            // Check if response is ok
+            if (!response.ok) {
+                // Try to get error message from JSON response
+                let errorMessage = 'خطا در بارگذاری لیست دانشجویان';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorData.detail || errorData.message || errorMessage;
+                } catch (e) {
+                    // If not JSON, use status-based message
+                    if (response.status === 403) {
+                        errorMessage = 'شما دسترسی لازم برای این عملیات را ندارید.';
+                    } else if (response.status === 404) {
+                        errorMessage = 'بخش مورد نظر یافت نشد.';
+                    } else if (response.status === 401) {
+                        errorMessage = 'نشست شما منقضی شده است. لطفاً دوباره وارد شوید.';
+                    }
+                }
+                throw new Error(errorMessage);
+            }
+            
+            // Parse JSON response
+            const data = await response.json();
+            return data;
         } catch (err) {
             console.error('Error loading enrolled students:', err);
+            // Re-throw with a more user-friendly message if needed
+            if (err.message && err.message.includes('خطا در ارتباط با سرور')) {
+                throw new Error('خطا در بارگذاری لیست دانشجویان. لطفاً دوباره تلاش کنید.');
+            }
             throw err;
         }
     },
