@@ -117,8 +117,6 @@ class Registration(models.Model):
             )
             total_units += self.section.course.units
             
-            if total_units < term.min_units:
-                errors["section"] = f"Minimum units required: {term.min_units}. Current: {total_units}"
             if total_units > term.max_units:
                 errors["section"] = f"Maximum units allowed: {term.max_units}. Current: {total_units}"
         
