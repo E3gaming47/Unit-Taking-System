@@ -15,7 +15,10 @@ class RegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Set student from request user
         validated_data["student"] = self.context["request"].user
-        return super().create(validated_data)
+        registration = Registration(**validated_data)
+        registration.full_clean()
+        registration.save()
+        return registration
 
 
 class RegistrationListSerializer(serializers.ModelSerializer):
