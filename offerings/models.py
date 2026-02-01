@@ -53,7 +53,7 @@ class Section(models.Model):
         expected = self.expected_sessions_per_week()
         if expected is not None and self.pk:
             schedules_count = self.schedules.count()
-            if schedules_count and schedules_count != expected:
+            if schedules_count != expected:
                 errors["schedules"] = f"Course requires exactly {expected} session(s) per week."
 
         if errors:
