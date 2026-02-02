@@ -1,0 +1,235 @@
+{% extends "students/base.html" %}
+
+{% block title %}انتخاب واحد - سیستم انتخاب واحد{% endblock %}
+
+{% block page_title %}انتخاب واحد{% endblock %}
+
+{% block registration_active %}active{% endblock %}
+
+{% block content %}
+<div x-data="studentRegistrationManager()" x-init="init()">
+    <div x-show="error" x-cloak class="alert alert-error" x-text="error"></div>
+    <div x-show="success" x-cloak class="alert alert-success" x-text="success"></div>
+
+    <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+        <div class="table-container">
+            <h3 style="margin-bottom: 15px; color: var(--primary-color);">وضعیت ترم و واحدها</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                <div><strong>ترم:</strong> <span x-text="termInfo?.name || '-'" /></div>
+                <div><strong>حداقل واحد:</strong> <span x-text="termInfo?.min_units ?? '-'" /></div>
+                <div><strong>حداکثر واحد:</strong> <span x-text="termInfo?.max_units ?? '-'" /></div>
+                <div><strong>مجموع واحدهای انتخاب‌شده:</strong> <span x-text="totalUnits" /></div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                <h3 style="color: var(--primary-color); margin: 0;">واحدهای من</h3>
+                <button type="button" class="btn btn-secondary" style="padding: 8px 14px;" @click="refreshAll()" :disabled="loading">
+                    بروزرسانی
+                </button>
+            </div>
+
+            <div x-show="loading" class="loading">
+                <div class="spinner"></div>
+                <p>در حال بارگذاری...</p>
+            </div>
+
+            <div x-show="!loading">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>درس</th>
+                            <th>گروه</th>
+                            <th>واحد</th>
+                            <th>زمان</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="reg in myRegistrations" :key="reg.id">
+                            <tr>
+                                <td x-text="reg.section?.course || '-'" />
+                                <td x-text="reg.section?.section_number ?? '-'" />
+                                <td x-text="reg.section?.units ?? '-'" />
+                                <td>
+                                    <template x-if="reg.section?.schedules && reg.section.schedules.length > 0">
+                                        <div>
+                                            <template x-for="sch in reg.section.schedules" :key="sch.id">
+                                                <div x-text="getScheduleText(sch)"></div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <span x-show="!reg.section?.schedules || reg.section.schedules.length === 0">-</span>
+                                </td>
+                                <td style="white-space: nowrap;">
+                                    <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;" @click="openChangeGroup(reg)">
+                                        تغییر گروه
+                                    </button>
+                                    <button type="button" class="btn btn-danger" style="padding: 6px 12px; font-size: 13px;" @click="dropRegistration(reg)">
+                                        حذف
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="myRegistrations.length === 0">
+                            <td colspan="5" style="text-align: center; padding: 30px; color: var(--gray-color);">
+                                هنوز واحدی انتخاب نشده است
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h3 style="margin-bottom: 15px; color: var(--primary-color);">دروس ارائه‌شده</h3>
+
+            <div x-show="selectedSection" x-cloak style="margin-bottom: 15px; padding: 15px; border-radius: var(--border-radius); background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.25);">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div style="font-weight: 700; color: var(--dark-gray);" x-text="selectedSection?.course"></div>
+                    <div style="white-space: nowrap;">
+                        <button type="button" class="btn btn-primary" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;" @click="addSection(selectedSection)" :disabled="isEnrolledInCourse(selectedSection?.course_id) || adding === selectedSection?.id">
+                            افزودن
+                        </button>
+                        <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;" @click="openChangeGroup(getRegistrationForCourse(selectedSection?.course_id))" :disabled="!getRegistrationForCourse(selectedSection?.course_id)">
+                            تغییر گروه
+                        </button>
+                        <button type="button" class="btn btn-danger" style="padding: 6px 12px; font-size: 13px;" @click="dropRegistration(getRegistrationForCourse(selectedSection?.course_id))" :disabled="!getRegistrationForCourse(selectedSection?.course_id)">
+                            حذف
+                        </button>
+                    </div>
+                </div>
+
+                <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
+                    <div><strong>ترم:</strong> <span x-text="selectedSection?.term"></span></div>
+                    <div><strong>استاد:</strong> <span x-text="selectedSection?.professor"></span></div>
+                    <div><strong>گروه:</strong> <span x-text="selectedSection?.section_number"></span></div>
+                    <div><strong>ظرفیت:</strong> <span x-text="selectedSection?.capacity"></span></div>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <strong>برنامه کلاسی:</strong>
+                    <div style="margin-top: 6px;" x-show="selectedSection?.schedules && selectedSection.schedules.length > 0">
+                        <template x-for="sch in selectedSection.schedules" :key="sch.id">
+                            <div x-text="getScheduleText(sch)"></div>
+                        </template>
+                    </div>
+                    <div x-show="!selectedSection?.schedules || selectedSection.schedules.length === 0" style="color: var(--gray-color); margin-top: 6px;">-</div>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <strong>پیش‌نیازها:</strong>
+                    <div style="margin-top: 6px;" x-show="selectedPrerequisites.length > 0">
+                        <template x-for="p in selectedPrerequisites" :key="p.id">
+                            <span style="display: inline-block; margin-left: 6px; margin-bottom: 6px; padding: 4px 8px; background: rgba(37, 99, 235, 0.1); border-radius: 6px;" x-text="getPrerequisiteName(p)"></span>
+                        </template>
+                    </div>
+                    <div x-show="selectedPrerequisites.length === 0" style="color: var(--gray-color); margin-top: 6px;">-</div>
+                </div>
+            </div>
+
+            <div class="filter-section" style="margin-bottom: 15px;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px; align-items: end;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>جستجو (نام یا کد درس)</label>
+                        <input type="text" x-model="searchText" @input.debounce.400ms="loadSections()" placeholder="جستجو...">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>ترم</label>
+                        <select x-model="selectedTerm" @change="loadSections()">
+                            <option value="">ترم فعال</option>
+                            <template x-for="t in terms" :key="t.id">
+                                <option :value="t.id" x-text="t.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>دپارتمان</label>
+                        <select x-model="selectedDepartment" @change="loadSections()">
+                            <option value="">همه</option>
+                            <template x-for="d in departments" :key="d.id">
+                                <option :value="d.id" x-text="d.name + ' (' + d.code + ')'" />
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-secondary" style="padding: 10px 16px;" @click="clearFilters()">پاک کردن</button>
+                    </div>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>درس</th>
+                        <th>گروه</th>
+                        <th>استاد</th>
+                        <th>واحد</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="section in sections" :key="section.id">
+                        <tr :style="selectedSectionId === section.id ? 'outline: 2px solid var(--primary-color);' : ''">
+                            <td x-text="section.course"></td>
+                            <td x-text="section.section_number"></td>
+                            <td x-text="section.professor"></td>
+                            <td x-text="section.units"></td>
+                            <td style="white-space: nowrap;">
+                                <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;" @click="selectSection(section)">
+                                    جزئیات
+                                </button>
+                                <button type="button" class="btn btn-primary" style="padding: 6px 12px; font-size: 13px;" @click="addSection(section)" :disabled="isEnrolledInCourse(section.course_id) || adding === section.id">
+                                    <span x-show="adding !== section.id">افزودن</span>
+                                    <span x-show="adding === section.id">...</span>
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="sections.length === 0">
+                        <td colspan="5" style="text-align: center; padding: 30px; color: var(--gray-color);">
+                            درسی ارائه نشده است
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal" :class="{ active: showChangeGroup }" @click.self="closeChangeGroup()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>تغییر گروه</h2>
+                <button class="modal-close" @click="closeChangeGroup()">×</button>
+            </div>
+
+            <div style="margin-bottom: 15px; color: var(--gray-color);" x-text="changeGroupTitle"></div>
+
+            <div class="form-group">
+                <label>گروه جدید</label>
+                <select x-model="newSectionId">
+                    <option value="">انتخاب کنید</option>
+                    <template x-for="s in availableGroupSections" :key="s.id">
+                        <option :value="s.id" x-text="'گروه ' + s.section_number + ' | ' + (s.professor || '')"></option>
+                    </template>
+                </select>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeChangeGroup()">انصراف</button>
+                <button type="button" class="btn btn-primary" @click="confirmChangeGroup()" :disabled="changing">
+                    <span x-show="!changing">ثبت تغییر</span>
+                    <span x-show="changing">...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+
+<script src="/static/js/student-registration.js?v=1"></script>
+{% endblock %}

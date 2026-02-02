@@ -136,28 +136,14 @@
                             <span x-show="!section.exam">-</span>
                         </td>
                         <td>
-                            <template x-if="isEnrolled(section.id)">
-                                <button 
-                                    @click="dropCourse(section.id)"
-                                    class="btn btn-danger"
-                                    style="padding: 6px 12px; font-size: 13px;"
-                                    :disabled="dropping === section.id"
-                                >
-                                    <span x-show="dropping !== section.id">حذف واحد</span>
-                                    <span x-show="dropping === section.id">در حال حذف...</span>
-                                </button>
-                            </template>
-                            <template x-if="!isEnrolled(section.id)">
-                                <button 
-                                    @click="enrollInSection(section.id)"
-                                    class="btn btn-primary"
-                                    style="padding: 6px 12px; font-size: 13px;"
-                                    :disabled="enrolling === section.id"
-                                >
-                                    <span x-show="enrolling !== section.id">ثبت نام</span>
-                                    <span x-show="enrolling === section.id">در حال ثبت...</span>
-                                </button>
-                            </template>
+                            <button 
+                                type="button"
+                                @click="goToRegistration(section.id)"
+                                class="btn btn-primary"
+                                style="padding: 6px 12px; font-size: 13px;"
+                            >
+                                جزئیات
+                            </button>
                         </td>
                     </tr>
                 </template>
@@ -175,7 +161,7 @@
     [x-cloak] { display: none !important; }
 </style>
 
-<script src="/static/js/student-offered-lessons.js"></script>
+<script src="/static/js/student-offered-lessons.js?v=2"></script>
 {% endblock %}
 
 

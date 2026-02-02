@@ -102,6 +102,13 @@ def student_weekly_schedule(request):
     return render(request, 'students/weekly-schedule.html')
 
 
+@login_required
+def student_registration(request):
+    if request.user.role != "student":
+        return HttpResponseForbidden()
+    return render(request, 'students/registration.html')
+
+
 
 @login_required
 def professor_dashboard(request):

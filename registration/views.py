@@ -10,6 +10,7 @@ from .serializers import RegistrationSerializer, RegistrationListSerializer
 from api.pagination import StandardResultsSetPagination
 from accounts.permissions import IsStudent
 from terms.models import Term
+from offerings.models import Section
 
 
 class RegistrationViewSet(viewsets.ModelViewSet):
@@ -251,3 +252,62 @@ class RegistrationViewSet(viewsets.ModelViewSet):
             )
         
         return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsStudent], url_path="change-section")
+    @transaction.atomic
+    def change_section(self, request, pk=None):
+        registration = self.get_object()
+        new_section_id = request.data.get("section_id")
+
+        try:
+            new_section_id_int = int(new_section_id)
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "section_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            new_section = Section.objects.select_related("term", "course").prefetch_related("schedules").get(
+                pk=new_section_id_int
+            )
+        except Section.DoesNotExist:
+            return Response({"error": "Section not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if new_section.term_id != registration.section.term_id:
+            return Response(
+                {"error": "Can only change section within the same term."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_section.course_id != registration.section.course_id:
+            return Response(
+                {"error": "Can only change group within the same course."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_section.id == registration.section_id:
+            return Response(
+                {"error": "You are already registered in this section."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            registration.delete()
+            new_registration = Registration(student=request.user, section=new_section)
+            new_registration.full_clean()
+            new_registration.save()
+        except ValidationError as e:
+            error_messages = []
+            if hasattr(e, "error_dict"):
+                for field, errors in e.error_dict.items():
+                    for error in errors:
+                        error_messages.append(str(error))
+            else:
+                error_messages.append(str(e))
+            return Response(
+                {"error": " ".join(error_messages) if error_messages else "Validation error"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(RegistrationSerializer(new_registration).data, status=status.HTTP_200_OK)

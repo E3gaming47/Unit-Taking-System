@@ -919,6 +919,14 @@ const API = {
         return await this.handleResponse(response);
     },
 
+    async changeRegistrationSection(registrationId, sectionId) {
+        const response = await this.request(`${this.baseURL}/registration/registrations/${registrationId}/change-section/`, {
+            method: 'POST',
+            body: JSON.stringify({ section_id: sectionId })
+        });
+        return await this.handleResponse(response);
+    },
+
     /**
      * Drop a course (delete registration)
      * @param {number} registrationId - Registration ID to delete

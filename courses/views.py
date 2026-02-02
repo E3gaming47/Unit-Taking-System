@@ -10,10 +10,17 @@ from .models import Course, Prerequisite
 from .serializers import CourseSerializer, PrerequisiteSerializer
 
 
+class IsAdminOrReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return request.user and request.user.is_authenticated
+        return request.user and request.user.is_authenticated and request.user.role == "admin"
+
+
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all().prefetch_related("departments")
     serializer_class = CourseSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAdminOrReadOnly]
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["code", "title", "departments__name", "departments__code"]
@@ -38,12 +45,6 @@ class CourseViewSet(viewsets.ModelViewSet):
         units_field = Course._meta.get_field("units")
         choices = [{"value": value, "label": str(label)} for value, label in units_field.choices]
         return Response({"units": choices})
-
-class IsAdminOrReadOnly(permissions.BasePermission):
-    def has_permission(self, request, view):
-        if request.method in permissions.SAFE_METHODS:
-            return request.user and request.user.is_authenticated
-        return request.user and request.user.is_authenticated and request.user.role == "admin"
 
 
 class PrerequisiteViewSet(viewsets.ModelViewSet):

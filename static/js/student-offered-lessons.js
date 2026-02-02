@@ -6,13 +6,9 @@ function offeredLessonsManager() {
         departments: [],
         courses: [],
         coursePrerequisites: {}, // Map of course_id -> prerequisites array
-        myRegistrations: [], // List of enrolled sections
-        enrolledSectionIds: new Set(), // Set of enrolled section IDs for quick lookup
         loading: false,
         error: '',
         success: '',
-        enrolling: null, // Section ID being enrolled
-        dropping: null, // Registration ID being dropped
         // Filter states
         searchText: '',
         selectedTerm: '',
@@ -24,27 +20,10 @@ function offeredLessonsManager() {
             
             // Load other data in parallel, but don't fail if any of them fail
             await Promise.allSettled([
-                this.loadMyRegistrations(),
                 this.loadTerms(),
                 this.loadDepartments(),
                 this.loadCourses()
             ]);
-        },
-
-        async loadMyRegistrations() {
-            try {
-                const registrations = await API.getMyRegistrations();
-                this.myRegistrations = Array.isArray(registrations) ? registrations : [];
-                // Create a Set of enrolled section IDs for quick lookup
-                this.enrolledSectionIds = new Set(
-                    this.myRegistrations.map(reg => reg.section?.id).filter(id => id !== undefined)
-                );
-            } catch (err) {
-                console.error('Error loading registrations:', err);
-                // Don't show error or redirect - just continue without enrollment info
-                this.myRegistrations = [];
-                this.enrolledSectionIds = new Set();
-            }
         },
 
         async loadSections() {
@@ -202,77 +181,10 @@ function offeredLessonsManager() {
             });
         },
 
-        isEnrolled(sectionId) {
-            return this.enrolledSectionIds.has(sectionId);
-        },
-
-        async enrollInSection(sectionId) {
-            if (this.enrolling) return; // Prevent double-click
-            
-            this.enrolling = sectionId;
-            this.error = '';
-            this.success = '';
-            
-            try {
-                const registration = await API.registerForSection(sectionId);
-                // Add to enrolled sections
-                this.enrolledSectionIds.add(sectionId);
-                this.myRegistrations.push(registration);
-                this.success = 'با موفقیت در این درس ثبت نام شدید.';
-                
-                // Clear success message after 3 seconds
-                setTimeout(() => {
-                    this.success = '';
-                }, 3000);
-            } catch (err) {
-                this.error = err.message || 'خطا در ثبت نام';
-                // Clear error message after 5 seconds
-                setTimeout(() => {
-                    this.error = '';
-                }, 5000);
-            } finally {
-                this.enrolling = null;
-            }
-        },
-
-        async dropCourse(sectionId) {
-            if (this.dropping) return; // Prevent double-click
-            
-            // Find the registration for this section
-            const registration = this.myRegistrations.find(reg => reg.section.id === sectionId);
-            if (!registration) {
-                this.error = 'ثبت نامی برای این درس یافت نشد.';
-                return;
-            }
-            
-            if (!confirm('آیا از حذف این واحد مطمئن هستید؟')) {
-                return;
-            }
-            
-            this.dropping = sectionId;
-            this.error = '';
-            this.success = '';
-            
-            try {
-                await API.dropCourse(registration.id);
-                // Remove from enrolled sections
-                this.enrolledSectionIds.delete(sectionId);
-                this.myRegistrations = this.myRegistrations.filter(reg => reg.id !== registration.id);
-                this.success = 'واحد با موفقیت حذف شد.';
-                
-                // Clear success message after 3 seconds
-                setTimeout(() => {
-                    this.success = '';
-                }, 3000);
-            } catch (err) {
-                this.error = err.message || 'خطا در حذف واحد';
-                // Clear error message after 5 seconds
-                setTimeout(() => {
-                    this.error = '';
-                }, 5000);
-            } finally {
-                this.dropping = null;
-            }
+        goToRegistration(sectionId) {
+            const id = parseInt(sectionId);
+            if (!id || isNaN(id)) return;
+            window.location.href = `/api/accounts/student/registration/?section=${id}`;
         }
     }
 }

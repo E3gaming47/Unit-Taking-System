@@ -13,6 +13,7 @@ from .views import (
     admin_term_offerings,
     student_dashboard,
     student_offered_lessons,
+    student_registration,
     student_weekly_schedule,
     professor_dashboard,
     professor_lessons,
@@ -27,6 +28,7 @@ urlpatterns = [
     # Specific routes first (before router)
     path('student/dashboard/', student_dashboard, name='student-dashboard'),
     path('student/offered-lessons/', student_offered_lessons, name='student-offered-lessons'),
+    path('student/registration/', student_registration, name='student-registration'),
     path('student/weekly-schedule/', student_weekly_schedule, name='student-weekly-schedule'),
     path('professor/dashboard/', professor_dashboard, name='professor-dashboard'),
     path('professor/lessons/', professor_lessons, name='professor-lessons'),
