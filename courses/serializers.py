@@ -119,11 +119,28 @@ class CourseSerializer(serializers.ModelSerializer):
 
         if prerequisite_courses is not None:
             prerequisites_valid(instance, prerequisite_courses)
-            Prerequisite.objects.filter(course=instance).delete()
-            if prerequisite_courses:
-                Prerequisite.objects.bulk_create(
-                    [Prerequisite(course=instance, prerequisite_course=pr) for pr in prerequisite_courses]
-                )
+            
+            # Use transaction to ensure data integrity
+            with transaction.atomic():
+                # Get current prerequisites
+                current_prereqs = set(Prerequisite.objects.filter(course=instance).values_list('prerequisite_course', flat=True))
+                new_prereqs = set(p.id for p in prerequisite_courses)
+                
+                # Identify to add and remove
+                to_add = new_prereqs - current_prereqs
+                to_remove = current_prereqs - new_prereqs
+                
+                # Remove
+                if to_remove:
+                    Prerequisite.objects.filter(course=instance, prerequisite_course__in=to_remove).delete()
+                
+                # Add
+                if to_add:
+                    new_objects = [
+                        Prerequisite(course=instance, prerequisite_course_id=p_id)
+                        for p_id in to_add
+                    ]
+                    Prerequisite.objects.bulk_create(new_objects)
 
         return instance        
 
