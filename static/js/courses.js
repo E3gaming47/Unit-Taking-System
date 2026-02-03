@@ -28,10 +28,10 @@ function coursesManager() {
         },
 
         async init() {
-            // Load filtered courses for display
             await this.loadCourses();
-            // Load departments
             await this.loadDepartments();
+            await this.loadAllCoursesForPrerequisites();
+            this.updateAvailablePrerequisiteCourses();
         },
 
         async loadCourses() {
@@ -126,20 +126,15 @@ function coursesManager() {
                 this.allCourses = allCoursesList;
                 console.log('Loaded courses for prerequisites:', this.allCourses.length);
                 
-                // Update available courses if we're currently editing a course
-                if (this.editingId) {
-                    this.updateAvailablePrerequisiteCourses();
-                }
+                this.updateAvailablePrerequisiteCourses();
             } catch (err) {
                 console.error('Error loading all courses:', err);
                 this.allCourses = [];
-                if (this.editingId) {
-                    this.updateAvailablePrerequisiteCourses();
-                }
+                this.updateAvailablePrerequisiteCourses();
             }
         },
 
-        openAddModal() {
+        async openAddModal() {
             this.editingId = null;
             this.form = { code: '', title: '', units: 3, departments: [] };
             this.coursePrerequisites = [];
@@ -149,6 +144,10 @@ function coursesManager() {
             this.activeTab = 'details';
             this.error = '';
             this.success = '';
+            if (!this.allCourses || this.allCourses.length === 0) {
+                await this.loadAllCoursesForPrerequisites();
+            }
+            this.updateAvailablePrerequisiteCourses();
             this.showModal = true;
         },
 
@@ -231,18 +230,20 @@ function coursesManager() {
                         this.closeModal();
                     }, 1000);
                 } else {
+                    if (this.coursePrerequisites && this.coursePrerequisites.length > 0) {
+                        data.prerequisites = this.coursePrerequisites.map(p => parseInt(p.prerequisite_course));
+                    }
+                    
                     const newCourse = await API.createCourse(data);
-                    this.editingId = newCourse.id;
-                    this.success = 'درس با موفقیت اضافه شد. اکنون می‌توانید پیش‌نیازها را مدیریت کنید.';
+                    this.success = 'درس با موفقیت اضافه شد';
                     this.coursePrerequisites = [];
                     // Reload courses list
                     await this.loadCourses();
                     // Reload all courses for prerequisites dropdown
                     await this.loadAllCoursesForPrerequisites();
-                    await this.loadCoursePrerequisites(newCourse.id);
-                    // Update available courses list
-                    this.updateAvailablePrerequisiteCourses();
-                    // Don't close modal for new courses, so user can manage prerequisites
+                    setTimeout(() => {
+                        this.closeModal();
+                    }, 1000);
                 }
             } catch (err) {
                 this.error = err.message || 'خطا در ذخیره درس';
@@ -315,20 +316,14 @@ function coursesManager() {
         },
 
         async addPrerequisite() {
-            if (!this.editingId) {
-                this.error = 'لطفاً ابتدا درس را ذخیره کنید، سپس پیش‌نیازها را اضافه کنید';
-                return;
-            }
-
             if (!this.newPrerequisiteCourse) {
                 this.error = 'لطفاً پیش‌نیاز را انتخاب کنید';
                 return;
             }
 
-            const courseId = parseInt(this.editingId);
             const prereqId = parseInt(this.newPrerequisiteCourse);
 
-            if (isNaN(courseId) || isNaN(prereqId) || courseId <= 0 || prereqId <= 0) {
+            if (isNaN(prereqId) || prereqId <= 0) {
                 this.error = 'خطا: شناسه‌های وارد شده نامعتبر است.';
                 return;
             }
@@ -342,6 +337,25 @@ function coursesManager() {
             if (exists) {
                 this.error = 'این پیش‌نیاز قبلاً اضافه شده است';
                 return;
+            }
+
+            if (!this.editingId) {
+                this.coursePrerequisites.push({
+                    id: 'temp_' + Date.now(),
+                    prerequisite_course: prereqId,
+                    course: null
+                });
+                this.newPrerequisiteCourse = '';
+                this.prerequisiteSearchText = '';
+                this.updateAvailablePrerequisiteCourses();
+                return;
+            }
+
+            const courseId = parseInt(this.editingId);
+            
+            if (isNaN(courseId) || courseId <= 0) {
+                 this.error = 'خطا: شناسه‌های وارد شده نامعتبر است.';
+                 return;
             }
 
             try {
@@ -384,13 +398,14 @@ function coursesManager() {
                 return;
             }
 
-            if (!this.editingId) {
-                this.error = 'خطا: درس انتخاب نشده است.';
+            if (prerequisiteCourseId === null || prerequisiteCourseId === undefined || prerequisiteCourseId === '') {
+                this.error = 'خطا: اطلاعات پیش‌نیاز نامعتبر است.';
                 return;
             }
 
-            if (prerequisiteCourseId === null || prerequisiteCourseId === undefined || prerequisiteCourseId === '') {
-                this.error = 'خطا: اطلاعات پیش‌نیاز نامعتبر است.';
+            if (!this.editingId) {
+                this.coursePrerequisites = this.coursePrerequisites.filter(p => p.prerequisite_course != prerequisiteCourseId);
+                this.updateAvailablePrerequisiteCourses();
                 return;
             }
 

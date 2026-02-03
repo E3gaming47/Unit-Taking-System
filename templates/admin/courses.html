@@ -137,31 +137,27 @@
             <div x-show="error" x-cloak class="alert alert-error" x-text="error" style="margin-bottom: 20px;"></div>
             <div x-show="success" x-cloak class="alert alert-success" x-text="success" style="margin-bottom: 20px;"></div>
 
-            <!-- Tabs (only show when editing) -->
-            <template x-if="editingId">
-                <div class="tabs" style="margin-bottom: 20px; border-bottom: 2px solid var(--light-gray);">
-                    <button 
-                        type="button"
-                        @click="activeTab = 'details'"
-                        :class="activeTab === 'details' ? 'tab-active' : 'tab-inactive'"
-                        class="tab-button"
-                    >
-                        جزئیات درس
-                    </button>
-                    <button 
-                        type="button"
-                        @click="activeTab = 'prerequisites'; filterPrerequisiteCourses();"
-                        :class="activeTab === 'prerequisites' ? 'tab-active' : 'tab-inactive'"
-                        class="tab-button"
-                    >
-                        پیش‌نیازها
-                    </button>
-                </div>
-            </template>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <button
+                    type="button"
+                    @click="activeTab = 'details'"
+                    class="btn"
+                    :class="activeTab === 'details' ? 'btn-primary' : 'btn-secondary'"
+                >
+                    جزئیات درس
+                </button>
+                <button
+                    type="button"
+                    @click="activeTab = 'prerequisites'; filterPrerequisiteCourses();"
+                    class="btn"
+                    :class="activeTab === 'prerequisites' ? 'btn-primary' : 'btn-secondary'"
+                >
+                    پیش‌نیازها
+                </button>
+            </div>
 
             <form @submit.prevent="submitForm()">
-                <!-- Details Tab -->
-                <div x-show="!editingId || activeTab === 'details'">
+                <div x-show="activeTab === 'details'">
                     <div class="form-group">
                         <label>کد درس *</label>
                         <input type="text" x-model="form.code" required>
@@ -190,8 +186,7 @@
                     </div>
                 </div>
 
-                <!-- Prerequisites Tab (only show when editing) -->
-                <template x-if="editingId && activeTab === 'prerequisites'">
+                <div x-show="activeTab === 'prerequisites'">
                     <div>
                         <h3 style="color: var(--primary-color); margin-bottom: 15px;">مدیریت پیش‌نیازهای این درس</h3>
                         <p style="color: var(--gray-color); font-size: 13px; margin-bottom: 15px;">
@@ -215,7 +210,7 @@
                                         x-model="newPrerequisiteCourse" 
                                         style="width: 100%;"
                                     >
-                                        <option value="" x-text="prerequisiteSearchText && prerequisiteSearchText.trim() && availablePrerequisiteCourses.length === 0 ? 'نتیجه‌ای یافت نشد' : 'جستجو کنید یا از لیست انتخاب کنید'"></option>
+                                        <option value="" x-text="availablePrerequisiteCourses.length === 0 ? (prerequisiteSearchText && prerequisiteSearchText.trim() ? 'نتیجه‌ای یافت نشد' : 'درسی برای انتخاب وجود ندارد') : 'جستجو کنید یا از لیست انتخاب کنید'"></option>
                                         <template x-for="course in availablePrerequisiteCourses" :key="course.id">
                                             <option :value="course.id" x-text="course.code + ' - ' + course.title"></option>
                                         </template>
@@ -271,14 +266,15 @@
                             </template>
                         </div>
                     </div>
-                </template>
+                </div>
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @click="closeModal()">
                         <i class="fas fa-times"></i> انصراف
                     </button>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> ذخیره
+                        <i class="fas fa-save"></i>
+                        <span x-text="editingId ? 'ذخیره' : 'افزودن'"></span>
                     </button>
                 </div>
             </form>
@@ -288,43 +284,10 @@
 
 <style>
     [x-cloak] { display: none !important; }
-    
-    .tabs {
-        display: flex;
-        gap: 0;
-        margin-bottom: 0;
-    }
-    
-    .tab-button {
-        padding: 12px 24px;
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--gray-color);
-        border-bottom: 3px solid transparent;
-        transition: all 0.2s;
-    }
-    
-    .tab-button:hover {
-        color: var(--primary-color);
-        background: rgba(128, 90, 213, 0.05);
-    }
-    
-    .tab-active {
-        color: var(--primary-color);
-        border-bottom-color: var(--primary-color);
-        font-weight: 600;
-    }
-    
-    .tab-inactive {
-        color: var(--gray-color);
-    }
 </style>
 {% endblock %}
 
 {% block page_scripts %}
-<script src="/static/js/courses.js"></script>
+<script src="/static/js/courses.js?v=3"></script>
 {% endblock %}
 

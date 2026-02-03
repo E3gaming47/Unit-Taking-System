@@ -52,6 +52,17 @@ class PrerequisiteViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     pagination_class = StandardResultsSetPagination
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        course_id = self.request.query_params.get("course")
+        if course_id:
+            try:
+                course_id_int = int(course_id)
+            except (TypeError, ValueError):
+                return queryset.none()
+            queryset = queryset.filter(course_id=course_id_int)
+        return queryset
+
     @action(detail=False, methods=["post"], url_path="add_prerequisite")
     def add_prerequisite(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -59,10 +70,10 @@ class PrerequisiteViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data, status=201)
 
-    @action(detail=False, methods=["post"], url_path="remove_prerequisite")
+    @action(detail=False, methods=["post", "delete"], url_path="remove_prerequisite")
     def remove_prerequisite(self, request):
-        course_id = request.data.get("course")
-        prereq_id = request.data.get("prerequisite_course")
+        course_id = request.data.get("course") or request.query_params.get("course")
+        prereq_id = request.data.get("prerequisite_course") or request.query_params.get("prerequisite_course")
 
         if not course_id or not prereq_id:
             return Response(
